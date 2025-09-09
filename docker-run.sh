@@ -7,6 +7,7 @@ APP_NAME="fe-parthamanunggal"
 IMAGE_TAG="${IMAGE_TAG:-${APP_NAME}:latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-${APP_NAME}}"
 PORT="${PORT:-3000}"
+INTERNAL_API_BASE_URL_DEFAULT="http://host.docker.internal:8000"
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
@@ -42,15 +43,29 @@ ensure_docker() {
 build() {
   ensure_docker
   echo "[docker-run] Building image: ${IMAGE_TAG}"
-  docker build -t "${IMAGE_TAG}" .
+  local nocache_flag=()
+  if [[ "${NO_CACHE:-0}" == "1" ]]; then
+    nocache_flag+=("--no-cache")
+  fi
+  docker build "${nocache_flag[@]}" \
+    --build-arg NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}" \
+    --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8000}" \
+    --build-arg NEXT_PUBLIC_USE_SERVER_AUTH="${NEXT_PUBLIC_USE_SERVER_AUTH:-1}" \
+    --build-arg NEXT_PUBLIC_USE_SANCTUM="${NEXT_PUBLIC_USE_SANCTUM:-1}" \
+    --build-arg NEXT_PUBLIC_AUTO_LOGIN="${NEXT_PUBLIC_AUTO_LOGIN:-1}" \
+    --build-arg NEXT_PUBLIC_AUTO_LOGIN_EMAIL="${NEXT_PUBLIC_AUTO_LOGIN_EMAIL:-admin@example.com}" \
+    --build-arg NEXT_PUBLIC_AUTO_LOGIN_PASSWORD="${NEXT_PUBLIC_AUTO_LOGIN_PASSWORD:-password}" \
+    --build-arg INTERNAL_API_BASE_URL="${INTERNAL_API_BASE_URL:-${INTERNAL_API_BASE_URL_DEFAULT}}" \
+    --build-arg BUILD_ID="$(date +%s)" \
+    -t "${IMAGE_TAG}" .
 }
 
 run() {
   ensure_docker
   local env_args=()
-  if [[ -f .env ]]; then
-    env_args+=("--env-file" ".env")
-  fi
+  # Load env files if present
+  if [[ -f .env ]]; then env_args+=("--env-file" ".env"); fi
+  if [[ -f .env.local ]]; then env_args+=("--env-file" ".env.local"); fi
 
   if container_running; then
     echo "[docker-run] Container '${CONTAINER_NAME}' already running on :${PORT}"
@@ -67,6 +82,7 @@ run() {
     --name "${CONTAINER_NAME}" \
     --restart unless-stopped \
     -p "${PORT}:3000" \
+    -e INTERNAL_API_BASE_URL="${INTERNAL_API_BASE_URL:-${INTERNAL_API_BASE_URL_DEFAULT}}" \
     "${env_args[@]}" \
     "${IMAGE_TAG}"
 
@@ -183,4 +199,3 @@ case "${cmd}" in
     exit 1
     ;;
 esac
-

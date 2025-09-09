@@ -35,7 +35,7 @@ export default function AnggotaDataTable() {
       try {
         setLoading(true);
         setError(null);
-        const res = await apiRequest<ApiList<Anggota[]>>("GET", "/api/anggota");
+        const res = await apiRequest<ApiList<Anggota[]>>("GET", "/api/anggotas");
         const payload = Array.isArray(res) ? res : (res as any).data;
         if (mounted) setData(payload ?? []);
       } catch (e: any) {
@@ -74,7 +74,7 @@ export default function AnggotaDataTable() {
     if (!confirm("Yakin menghapus anggota ini?")) return;
     setDeletingId(id);
     try {
-      await apiRequest("DELETE", `/api/anggota/${id}`);
+      await apiRequest("DELETE", `/api/anggotas/${id}`);
       setData((rows) => rows.filter((r) => r.id !== id));
     } catch (e: any) {
       alert(e?.message ?? "Gagal menghapus");

@@ -21,7 +21,7 @@ export default function AnggotaDetailPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await apiRequest<Anggota | { data: Anggota }>('GET', `/api/anggota/${id}`);
+        const res = await apiRequest<Anggota | { data: Anggota }>('GET', `/api/anggotas/${id}`);
         const payload = (res as any)?.data ? (res as any).data : res;
         if (mounted) setData(payload ?? null);
       } catch (e: any) {

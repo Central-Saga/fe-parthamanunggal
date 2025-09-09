@@ -36,7 +36,7 @@ export default function AnggotaCreatePage() {
     try {
       // Minimal required payload aligned with backend
       const payload = { ...form } as Record<string, unknown>;
-      await apiRequest("POST", "/api/anggota", payload);
+      await apiRequest("POST", "/api/anggotas", payload);
       router.push("/dashboard/anggota");
     } catch (err: any) {
       setError(err?.message ?? "Gagal menyimpan data");

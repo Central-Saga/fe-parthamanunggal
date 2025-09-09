@@ -30,7 +30,7 @@ export default function AnggotaEditPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await apiRequest<Anggota | { data: Anggota }>("GET", `/api/anggota/${id}`);
+        const res = await apiRequest<Anggota | { data: Anggota }>("GET", `/api/anggotas/${id}`);
         const data = (res as any)?.data ? (res as any).data : res;
         if (mounted && data) {
           setForm({
@@ -61,7 +61,7 @@ export default function AnggotaEditPage() {
     setError(null);
     setSaving(true);
     try {
-      await apiRequest("PUT", `/api/anggota/${id}`, form);
+      await apiRequest("PUT", `/api/anggotas/${id}`, form);
       router.push("/dashboard/anggota");
     } catch (err: any) {
       setError(err?.message ?? "Gagal menyimpan data");

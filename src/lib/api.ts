@@ -1,11 +1,12 @@
 // lib/api.ts
 import axios, { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+import { autoLoginIfEnabled } from './auth';
+import { getApiBaseUrl, shouldProxyApiThroughNext } from './config';
 
-// Base URL configurable via env with a safe fallback
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.parthamanunggal.com';
-if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
-  console.log('API Base URL:', API_BASE_URL);
-}
+// Note: We'll still override baseURL per-request to ensure runtime correctness
+// across SSR/CSR and stale builds.
+const API_BASE_URL = shouldProxyApiThroughNext() ? '' : getApiBaseUrl();
+const USE_SANCTUM = shouldProxyApiThroughNext();
 
 // 1. Buat Axios instance
 const api = axios.create({
@@ -15,10 +16,11 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
   },
-  withCredentials: false, // Tidak perlu credentials untuk API
-  timeout: 30000, // Menambahkan timeout 30 detik
-  // Tambahkan proxy untuk bypass CORS issue
-  proxy: false
+  withCredentials: USE_SANCTUM, // include cookies for Sanctum when proxying
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+  timeout: 30000,
+  proxy: false,
 });
 
 // 2. Interceptor: tambahkan Bearer token jika ada
@@ -40,16 +42,20 @@ export async function apiRequest<T>(
   config?: AxiosRequestConfig
 ): Promise<T> {
   try {
+    // Resolve base dynamically per request (handles SSR/CSR and localhost heuristics)
+    const resolvedBase = shouldProxyApiThroughNext() ? '' : getApiBaseUrl();
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`Making ${method} request to ${url}`);
-      console.log('Request config:', { method, url, data, config });
-      console.log('API Base URL:', API_BASE_URL);
+      const fullUrlForLog = url.startsWith('http') ? url : `${resolvedBase}${url}`;
+      console.log(`[api] ${method} ${fullUrlForLog}`);
+      console.log('[api] Base URL:', resolvedBase || '(relative via Next proxy)');
+      console.log('[api] Request config:', { method, url, data, config });
     }
     
     const response = await api({
       method,
       url,
       data,
+      baseURL: resolvedBase,
       ...config,
     });
     if (process.env.NODE_ENV !== 'production') {
@@ -75,19 +81,21 @@ export async function apiRequest<T>(
       if (process.env.NODE_ENV !== 'production') {
         console.log('Received 500 error, trying alternative approaches...');
       }
+      const retryBase = shouldProxyApiThroughNext() ? '' : getApiBaseUrl();
       
       // Try 1: Direct fetch without axios
       try {
         if (process.env.NODE_ENV !== 'production') {
           console.log('Attempting direct fetch...');
         }
-        const fullUrl = `${API_BASE_URL}${url}`;
+        const fullUrl = url.startsWith('http') ? url : `${retryBase}${url}`;
         const fetchResponse = await fetch(fullUrl, {
           method,
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
           },
+          credentials: USE_SANCTUM ? 'include' : 'same-origin',
           body: data ? JSON.stringify(data) : undefined,
         });
         
@@ -115,13 +123,14 @@ export async function apiRequest<T>(
         }
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          const fullUrl = `${API_BASE_URL}${url}`;
+          const fullUrl = url.startsWith('http') ? url : `${retryBase}${url}`;
           
           xhr.open(method, fullUrl, true);
           xhr.setRequestHeader('Accept', 'application/json');
           xhr.setRequestHeader('Content-Type', 'application/json');
           xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
           
+          xhr.withCredentials = USE_SANCTUM;
           xhr.timeout = 30000;
           
           xhr.onload = function() {
@@ -161,13 +170,15 @@ export async function apiRequest<T>(
       }
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        const fullUrl = `${API_BASE_URL}${url}`;
+        const resolvedBase = shouldProxyApiThroughNext() ? '' : getApiBaseUrl();
+        const fullUrl = url.startsWith('http') ? url : `${resolvedBase}${url}`;
         
         xhr.open(method, fullUrl, true);
         xhr.setRequestHeader('Accept', 'application/json');
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         
+        xhr.withCredentials = USE_SANCTUM;
         xhr.timeout = 30000;
         
         xhr.onload = function() {
@@ -206,7 +217,7 @@ export async function apiRequest<T>(
 // 4. Error handler global untuk menangani token expired
 api.interceptors.response.use(
   (response) => response,
-  (error: { response?: { status?: number; data?: unknown }; code?: string; message?: string; config?: unknown }) => {
+  async (error: { response?: { status?: number; data?: unknown }; code?: string; message?: string; config?: any }) => {
     // Log error details for debugging
     console.error('API Error:', {
       message: error.message,
@@ -215,16 +226,26 @@ api.interceptors.response.use(
       data: error.response?.data
     });
 
-    if (error.response?.status === 401) {
-      // Bersihkan data dari localStorage
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Try auto-login once, then retry original request
+      try {
+        const ok = await autoLoginIfEnabled();
+        if (ok && error.config) {
+          // Update Authorization header if token-based
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            error.config.headers = error.config.headers || {};
+            error.config.headers['Authorization'] = `Bearer ${token}`;
+          }
+          return api.request(error.config);
+        }
+      } catch {}
+
+      // If still unauthorized: clean storage and redirect
       localStorage.removeItem('access_token');
       localStorage.removeItem('token_type');
       localStorage.removeItem('user');
-      
-      // Redirect ke halaman login
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
-      }
+      window.location.href = '/auth/login';
     }
     
     if (error.code === 'ECONNABORTED') {

@@ -34,6 +34,31 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig<unknown>) => {
   return config;
 });
 
+// Small cookie helper (browser only)
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function ensureCsrfCookie(): Promise<void> {
+  if (typeof window === 'undefined') return; // SSR: skip
+  if (!USE_SANCTUM) return; // Only relevant for Sanctum session mode
+  const token = getCookie('XSRF-TOKEN');
+  if (token) return;
+  try {
+    try {
+      await api.get('/sanctum/csrf-cookie', { baseURL: '' });
+    } catch {
+      await api.get('/csrf-cookie', { baseURL: '' });
+    }
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[api] Failed to prefetch CSRF cookie:', e);
+    }
+  }
+}
+
 // 3. Helper function apiRequest<T>
 export async function apiRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
@@ -42,6 +67,10 @@ export async function apiRequest<T>(
   config?: AxiosRequestConfig
 ): Promise<T> {
   try {
+    // Proactively ensure CSRF cookie for state-changing requests when using Sanctum
+    if (USE_SANCTUM && method !== 'GET' && typeof window !== 'undefined') {
+      await ensureCsrfCookie();
+    }
     // Resolve base dynamically per request (handles SSR/CSR and localhost heuristics)
     const resolvedBase = shouldProxyApiThroughNext() ? '' : getApiBaseUrl();
     if (process.env.NODE_ENV !== 'production') {
@@ -226,6 +255,7 @@ api.interceptors.response.use(
       data: error.response?.data
     });
 
+    // Handle unauthorized by attempting auto-login once
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       // Try auto-login once, then retry original request
       try {
@@ -246,6 +276,30 @@ api.interceptors.response.use(
       localStorage.removeItem('token_type');
       localStorage.removeItem('user');
       window.location.href = '/auth/login';
+    }
+
+    // Handle Laravel Sanctum CSRF mismatch (419) by fetching a new CSRF cookie
+    if (error.response?.status === 419 && typeof window !== 'undefined' && error.config) {
+      // Prevent infinite retry loops
+      if ((error.config as any)._retriedCsrf) {
+        return Promise.reject(error);
+      }
+      try {
+        try {
+          await apiRequest('GET', '/sanctum/csrf-cookie');
+        } catch {
+          // Some setups expose it at /csrf-cookie
+          await apiRequest('GET', '/csrf-cookie');
+        }
+
+        const retryConfig = { ...error.config, _retriedCsrf: true };
+        // Ensure headers exist and include X-Requested-With for Laravel
+        retryConfig.headers = retryConfig.headers || {};
+        retryConfig.headers['X-Requested-With'] = 'XMLHttpRequest';
+        return api.request(retryConfig);
+      } catch (csrfErr) {
+        console.error('Failed to refresh CSRF cookie:', csrfErr);
+      }
     }
     
     if (error.code === 'ECONNABORTED') {

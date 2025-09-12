@@ -67,16 +67,6 @@ run() {
   if [[ -f .env ]]; then env_args+=("--env-file" ".env"); fi
   if [[ -f .env.local ]]; then env_args+=("--env-file" ".env.local"); fi
 
-  if container_running; then
-    echo "[docker-run] Container '${CONTAINER_NAME}' already running on :${PORT}"
-    exit 0
-  fi
-
-  if container_exists; then
-    echo "[docker-run] Removing existing stopped container '${CONTAINER_NAME}'"
-    docker rm "${CONTAINER_NAME}" >/dev/null
-  fi
-
   echo "[docker-run] Starting container: ${CONTAINER_NAME} (port ${PORT})"
   docker run -d \
     --name "${CONTAINER_NAME}" \
@@ -142,7 +132,7 @@ usage() {
 Usage: ${0##*/} <command>
 
 Commands:
-  up            Build image and run container (default)
+  up            Stop old container, rebuild image, run new container (default)
   build         Build the Docker image only
   run           Run the container from existing image
   stop          Stop and remove the container
@@ -163,11 +153,16 @@ Examples:
 EOF
 }
 
+up() {
+  stop
+  build
+  run
+}
+
 cmd="${1:-up}"
 case "${cmd}" in
   up)
-    build
-    run
+    up
     ;;
   build)
     build
@@ -199,3 +194,4 @@ case "${cmd}" in
     exit 1
     ;;
 esac
+

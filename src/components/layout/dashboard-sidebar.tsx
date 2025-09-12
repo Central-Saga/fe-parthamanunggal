@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react"; // ⬅️ tambahkan useEffect
+import { getJenisIdFromEnv, fetchJenisById } from "@/lib/jenisSimpanan";
 import {
   LayoutDashboard,
   Wallet,
@@ -40,7 +41,7 @@ export default function DashboardSidebar() {
         icon: Wallet,
         children: [
           { label: "Sukarela", href: "/dashboard/simpanan/sukarela" },
-          { label: "Wajib usaha", href: "/dashboard/simpanan/wajib_usaha" },
+          { label: "Wajib Usaha", href: "/dashboard/simpanan/wajib_usaha" },
           { label: "Berjangka", href: "/dashboard/simpanan/berjangka" },
           { label: "Pokok", href: "/dashboard/simpanan/pokok" },
           { label: "Wajib", href: "/dashboard/simpanan/wajib" },
@@ -62,6 +63,41 @@ export default function DashboardSidebar() {
     ],
     []
   );
+
+  // Dynamically update Simpanan submenu labels from backend by ID, if provided in env
+  useEffect(() => {
+    const keys: Array<{ key: string; index: number; fallback: string }> = [
+      { key: 'sukarela', index: 0, fallback: 'Sukarela' },
+      { key: 'wajib_usaha', index: 1, fallback: 'Wajib Usaha' },
+      { key: 'berjangka', index: 2, fallback: 'Berjangka' },
+      { key: 'pokok', index: 3, fallback: 'Pokok' },
+      { key: 'wajib', index: 4, fallback: 'Wajib' },
+      { key: 'wajib_khusus', index: 5, fallback: 'Wajib Khusus' },
+      { key: 'khusus', index: 6, fallback: 'Khusus' },
+      { key: 'modal', index: 7, fallback: 'Modal' },
+    ];
+    let mounted = true;
+    async function load() {
+      const cloned = structuredClone(menu) as Item[];
+      const simpanan = cloned.find((m) => m.label === 'Simpanan');
+      if (!simpanan || !simpanan.children) return;
+      await Promise.all(keys.map(async ({ key, index, fallback }) => {
+        const id = getJenisIdFromEnv(key as any);
+        if (!id) return; // keep fallback
+        const jenis = await fetchJenisById(id);
+        if (mounted && jenis?.nama) {
+          simpanan.children![index].label = jenis.nama || fallback;
+        }
+      }));
+      if (mounted) {
+        // Force re-render by updating open state; menu is memoized, but children references updated
+        setOpen((o) => ({ ...o }));
+      }
+    }
+    load();
+    return () => { mounted = false };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const admin = useMemo<Item[]>(
     () => [

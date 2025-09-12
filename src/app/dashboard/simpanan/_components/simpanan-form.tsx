@@ -92,28 +92,31 @@ export default function SimpananForm({ jenisKey, mode, id, backHref, title, subt
     setError(null);
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        jenis_simpanan_id: getJenisIdFromEnv(jenisKey) ?? undefined,
+      const basePayload: Record<string, unknown> = {
         anggota_id: form.anggota_id === "" ? null : Number(form.anggota_id),
-        nominal: form.nominal ? Number(form.nominal) : 0,
+        // Kirim sebagai string agar kompatibel dengan decimal di backend
+        nominal: form.nominal || "0",
         tanggal: form.tanggal,
         keterangan: form.keterangan || null,
         status: form.status,
       };
 
-      // If no env jenis id, try resolve dynamically before submit
-      if (!payload.jenis_simpanan_id) {
-        payload.jenis_simpanan_id = await resolveJenisId(jenisKey);
-      }
-
       if (mode === "create") {
-        await apiRequest("POST", "/api/simpanans", payload);
+        let jenisId = getJenisIdFromEnv(jenisKey);
+        if (!jenisId) jenisId = await resolveJenisId(jenisKey);
+        if (!jenisId) throw new Error("Jenis simpanan tidak ditemukan. Mohon set env NEXT_PUBLIC_JENIS_... atau pastikan endpoint jenis tersedia.");
+        await apiRequest("POST", "/api/simpanans", { ...basePayload, jenis_simpanan_id: jenisId });
       } else {
-        await apiRequest("PUT", `/api/simpanans/${id}`, payload);
+        // Pada update, hindari mengirim jenis_simpanan_id jika backend tidak mengizinkan ubah jenis
+        await apiRequest("PUT", `/api/simpanans/${id}`, basePayload);
       }
       router.push(backHref);
     } catch (err: any) {
-      setError(err?.message ?? "Gagal menyimpan data simpanan");
+      // Tampilkan pesan validasi jika ada
+      const msg = err?.response?.data?.message || err?.message;
+      const errors = err?.response?.data?.errors;
+      const detail = errors ? Object.values(errors).flat().join("; ") : "";
+      setError((msg || "Gagal menyimpan data simpanan") + (detail ? ` — ${detail}` : ""));
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,6 @@
 import SimpananWajibKhususDataTable from './data-table';
 import JenisHeading from "@/app/dashboard/simpanan/_components/jenis-heading";
+import { Suspense } from 'react';
 
 export default function SimpananWajibKhususPage() {
   return (
@@ -9,7 +10,9 @@ export default function SimpananWajibKhususPage() {
         <p className="text-sm text-muted-foreground">Daftar simpanan wajib khusus dari backend.</p>
       </div>
 
-      <SimpananWajibKhususDataTable />
+      <Suspense fallback={<div className="text-sm text-muted-foreground">Memuat...</div>}>
+        <SimpananWajibKhususDataTable />
+      </Suspense>
     </div>
   );
 }

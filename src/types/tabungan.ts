@@ -11,6 +11,7 @@ export interface Tabungan {
   status: number; // smallInteger
   created_at: string; // timestamp (ISO string)
   updated_at: string; // timestamp (ISO string)
+  anggota?: { id: number; nama: string };
 }
 
 export interface ApiResponse<T> {
@@ -18,4 +19,3 @@ export interface ApiResponse<T> {
   message?: string;
   status: number;
 }
-

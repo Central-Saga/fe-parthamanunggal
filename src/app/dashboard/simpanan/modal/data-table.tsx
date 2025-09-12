@@ -3,16 +3,19 @@
 import StandardDataTable from '@/components/data/standard-data-table';
 import type { Simpanan } from '@/types/simpanan';
 import { simpananModalColumns } from './columns';
-import { getJenisIdFromEnv, resolveJenisId } from '@/lib/jenisSimpanan';
+import { getJenisIdFromEnv, resolveJenisId, getJenisIdRuntime } from '@/lib/jenisSimpanan';
 import { useEffect, useState } from 'react';
 
 export default function SimpananModalDataTable() {
-  const [url, setUrl] = useState<string>("/api/simpanans");
+  const envId = getJenisIdFromEnv('modal');
+  const initial = envId ? `/api/simpanans?jenis_simpanan_id=${envId}` : '/api/simpanans';
+  const [url, setUrl] = useState<string>(initial);
   useEffect(() => {
     let mounted = true;
     async function set() {
       const envId = getJenisIdFromEnv('modal');
-      const id = envId ?? (await resolveJenisId('modal'));
+      const runtimeId = await getJenisIdRuntime('modal');
+      const id = envId ?? runtimeId ?? (await resolveJenisId('modal'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
       if (mounted) setUrl(built);
     }

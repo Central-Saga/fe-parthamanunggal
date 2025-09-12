@@ -77,6 +77,21 @@ export async function resolveJenisId(key: JenisKey): Promise<number | null> {
   return null;
 }
 
+let runtimeCache: Record<string, number | null> | null = null;
+export async function getJenisIdRuntime(key: JenisKey): Promise<number | null> {
+  try {
+    if (!runtimeCache) {
+      const res = await apiRequest<{ jenisIds: Record<string, number | null> }>('GET', '/api/client-config');
+      runtimeCache = res?.jenisIds || {};
+    }
+    const id = (runtimeCache as any)?.[key] as number | null | undefined;
+    if (id) return id;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export async function fetchJenisById(id: number): Promise<JenisSimpananItem | null> {
   try {
     const res = await apiRequest<JenisSimpananItem | { data: JenisSimpananItem }>("GET", `/api/jenis-simpanans/${id}`);

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import type { Anggota } from "@/types/anggota";
 import type { Tabungan } from "@/types/tabungan";
+import type { TabunganKey } from "@/lib/jenisTabungan";
+import { getTabunganJenisIdFromEnv, resolveTabunganJenisId } from "@/lib/jenisTabungan";
 
 export type TabunganFormProps = {
-  jenisKey: string; // 'harian' | 'berjangka' | 'deposito'
+  jenisKey: TabunganKey; // 'harian' | 'berjangka' | 'deposito'
   mode: "create" | "edit";
   id?: string | number;
   backHref: string;
@@ -47,7 +49,7 @@ export default function TabunganForm({ jenisKey, mode, id, backHref, title, subt
 
         if (mode === "edit" && id != null) {
           setLoading(true);
-          const res = await apiRequest<Tabungan | { data: Tabungan }>("GET", `/api/tabungan/${id}`);
+          const res = await apiRequest<Tabungan | { data: Tabungan }>("GET", `/api/tabungans/${id}`);
           const data = (res as any)?.data ? (res as any).data : res;
           if (mounted && data) {
             setForm({
@@ -77,21 +79,26 @@ export default function TabunganForm({ jenisKey, mode, id, backHref, title, subt
     setError(null);
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        jenis: jenisKey,
+      const basePayload: Record<string, unknown> = {
         anggota_id: form.anggota_id === "" ? null : Number(form.anggota_id),
-        saldo: form.saldo ? Number(form.saldo) : 0,
+        saldo: form.saldo || "0",
         tgl_buka: form.tgl_buka,
         status: Number(form.status),
       };
       if (mode === "create") {
-        await apiRequest("POST", "/api/tabungan", payload);
+        let jenisId = getTabunganJenisIdFromEnv(jenisKey);
+        if (!jenisId) jenisId = await resolveTabunganJenisId(jenisKey);
+        if (!jenisId) throw new Error("Jenis tabungan tidak ditemukan. Set env NEXT_PUBLIC_JENIS_TABUNGAN_... atau pastikan endpoint jenis tersedia.");
+        await apiRequest("POST", "/api/tabungans", { ...basePayload, jenis_tabungan_id: jenisId });
       } else {
-        await apiRequest("PUT", `/api/tabungan/${id}`, payload);
+        await apiRequest("PUT", `/api/tabungans/${id}`, basePayload);
       }
       router.push(backHref);
     } catch (err: any) {
-      setError(err?.message ?? "Gagal menyimpan tabungan");
+      const msg = err?.response?.data?.message || err?.message;
+      const errors = err?.response?.data?.errors;
+      const detail = errors ? Object.values(errors).flat().join("; ") : "";
+      setError((msg || "Gagal menyimpan tabungan") + (detail ? ` — ${detail}` : ""));
     } finally {
       setSaving(false);
     }
@@ -181,4 +188,3 @@ function Field({ label, children, required = false }: { label: string; children:
     </label>
   );
 }
-

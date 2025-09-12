@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button';
 
 export const tabunganBerjangkaColumns: ColumnDef<Tabungan>[] = [
   { header: 'ID', accessorKey: 'id', size: 80 },
-  { header: 'Anggota ID', accessorKey: 'anggota_id', size: 120 },
+  {
+    id: 'anggota',
+    header: 'Anggota',
+    size: 180,
+    cell: ({ row }) => row.original.anggota?.nama ?? String(row.original.anggota_id),
+  },
   {
     header: 'Saldo',
     accessorKey: 'saldo',

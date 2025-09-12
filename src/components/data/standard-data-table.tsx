@@ -53,8 +53,14 @@ export default function StandardDataTable<T extends Record<string, any>>({
       try {
         setLoading(true);
         setError(null);
-        const res = await apiRequest<ApiList<T[]>>("GET", listUrl);
-        const payload = Array.isArray(res) ? res : (res as any).data;
+        // Bust caches to ensure fresh list after edits
+        const url = listUrl + (listUrl.includes('?') ? '&' : '?') + `_= ${Date.now()}`;
+        const res = await apiRequest<ApiList<T[]>>("GET", url, undefined, {
+          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        });
+        const payload = Array.isArray(res)
+          ? res
+          : ((res as any)?.data?.data ?? (res as any)?.data ?? res);
         if (mounted) setData(payload ?? []);
       } catch (e: any) {
         if (mounted) setError(e?.message ?? "Gagal memuat data");

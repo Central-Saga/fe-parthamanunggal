@@ -3,22 +3,28 @@
 import StandardDataTable from '@/components/data/standard-data-table';
 import type { Simpanan } from '@/types/simpanan';
 import { simpananWajibKhususColumns } from './columns';
-import { getJenisIdFromEnv, resolveJenisId } from '@/lib/jenisSimpanan';
+import { getJenisIdFromEnv, resolveJenisId, getJenisIdRuntime } from '@/lib/jenisSimpanan';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function SimpananWajibKhususDataTable() {
-  const [url, setUrl] = useState<string>("/api/simpanans");
+  const searchParams = useSearchParams();
+  const qpId = Number(searchParams.get('jenisId')) || null;
+  const envId = getJenisIdFromEnv('wajib_khusus');
+  const initialId = qpId || envId || null;
+  const initial = initialId ? `/api/simpanans?jenis_simpanan_id=${initialId}` : '/api/simpanans';
+  const [url, setUrl] = useState<string>(initial);
   useEffect(() => {
     let mounted = true;
     async function set() {
-      const envId = getJenisIdFromEnv('wajib_khusus');
-      const id = envId ?? (await resolveJenisId('wajib_khusus'));
+      const runtimeId = await getJenisIdRuntime('wajib_khusus');
+      const id = qpId ?? envId ?? runtimeId ?? (await resolveJenisId('wajib_khusus'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
       if (mounted) setUrl(built);
     }
     set();
     return () => { mounted = false };
-  }, []);
+  }, [qpId, envId]);
   return (
     <StandardDataTable<Simpanan>
       columns={simpananWajibKhususColumns}

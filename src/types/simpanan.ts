@@ -12,6 +12,9 @@ export interface Simpanan {
   status: string; // enum('Aktif','Non Aktif') in DB
   created_at: string; // timestamp (ISO string)
   updated_at: string; // timestamp (ISO string)
+  // Optional eager-loaded relations from backend
+  anggota?: { id: number; nama: string };
+  jenis_simpanan?: { id: number; nama: string };
 }
 
 export interface ApiResponse<T> {
@@ -19,4 +22,3 @@ export interface ApiResponse<T> {
   message?: string;
   status: number;
 }
-

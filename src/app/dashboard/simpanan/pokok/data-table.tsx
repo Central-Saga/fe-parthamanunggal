@@ -3,16 +3,19 @@
 import StandardDataTable from '@/components/data/standard-data-table';
 import type { Simpanan } from '@/types/simpanan';
 import { simpananPokokColumns } from './columns';
-import { getJenisIdFromEnv, resolveJenisId } from '@/lib/jenisSimpanan';
+import { getJenisIdFromEnv, resolveJenisId, getJenisIdRuntime } from '@/lib/jenisSimpanan';
 import { useEffect, useState } from 'react';
 
 export default function SimpananPokokDataTable() {
-  const [url, setUrl] = useState<string>("/api/simpanans");
+  const envId = getJenisIdFromEnv('pokok');
+  const initial = envId ? `/api/simpanans?jenis_simpanan_id=${envId}` : '/api/simpanans';
+  const [url, setUrl] = useState<string>(initial);
   useEffect(() => {
     let mounted = true;
     async function set() {
       const envId = getJenisIdFromEnv('pokok');
-      const id = envId ?? (await resolveJenisId('pokok'));
+      const runtimeId = await getJenisIdRuntime('pokok');
+      const id = envId ?? runtimeId ?? (await resolveJenisId('pokok'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
       if (mounted) setUrl(built);
     }

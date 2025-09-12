@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananWajibUsahaEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Simpanan Wajib Usaha</h1>
-      <p className="text-sm text-muted-foreground">Form edit simpanan wajib usaha (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="wajib_usaha"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/simpanan/wajib_usaha"
+      title="Edit Simpanan Wajib Usaha"
+      subtitle="Perbarui data simpanan wajib usaha"
+    />
   );
 }
 

@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananPokokEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Simpanan Pokok</h1>
-      <p className="text-sm text-muted-foreground">Form edit simpanan pokok (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="pokok"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/simpanan/pokok"
+      title="Edit Simpanan Pokok"
+      subtitle="Perbarui data simpanan pokok"
+    />
   );
 }
 

@@ -1,9 +1,14 @@
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananWajibUsahaCreatePage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Buat Simpanan Wajib Usaha</h1>
-      <p className="text-sm text-muted-foreground">Form pembuatan simpanan wajib usaha (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="wajib_usaha"
+      mode="create"
+      backHref="/dashboard/simpanan/wajib_usaha"
+      title="Buat Simpanan Wajib Usaha"
+      subtitle="Isi data simpanan wajib usaha"
+    />
   );
 }
 

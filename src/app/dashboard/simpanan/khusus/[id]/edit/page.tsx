@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananKhususEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Simpanan Khusus</h1>
-      <p className="text-sm text-muted-foreground">Form edit simpanan khusus (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="khusus"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/simpanan/khusus"
+      title="Edit Simpanan Khusus"
+      subtitle="Perbarui data simpanan khusus"
+    />
   );
 }
 

@@ -11,6 +11,7 @@ export default function TabunganHarianDataTable() {
       listUrl="/api/tabungan?jenis=harian"
       createHref="/dashboard/tabungan/harian/create"
       createLabel="Tambah Tabungan Harian"
+      onDeleteUrl={(id) => `/api/tabungan/${id}`}
       searchPlaceholder="Cari tabungan..."
       emptyText="Belum ada tabungan harian"
     />

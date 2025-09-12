@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananModalEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Simpanan Modal</h1>
-      <p className="text-sm text-muted-foreground">Form edit simpanan modal (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="modal"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/simpanan/modal"
+      title="Edit Simpanan Modal"
+      subtitle="Perbarui data simpanan modal"
+    />
   );
 }
 

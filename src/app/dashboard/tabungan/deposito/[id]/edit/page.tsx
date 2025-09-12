@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import TabunganForm from "@/app/dashboard/tabungan/_components/tabungan-form";
+
 export default function TabunganDepositoEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Tabungan Deposito</h1>
-      <p className="text-sm text-muted-foreground">Form edit tabungan deposito (placeholder).</p>
-    </div>
+    <TabunganForm
+      jenisKey="deposito"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/tabungan/deposito"
+      title="Edit Tabungan Deposito"
+      subtitle="Perbarui data tabungan deposito"
+    />
   );
 }
 

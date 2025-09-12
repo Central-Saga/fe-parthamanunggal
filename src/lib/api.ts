@@ -31,6 +31,13 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig<unknown>) => {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
   }
+  // If sending FormData, let the browser set the Content-Type (with boundary)
+  if (config.data && typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (config.headers) {
+      delete (config.headers as any)['Content-Type'];
+      delete (config.headers as any)['content-type'];
+    }
+  }
   return config;
 });
 

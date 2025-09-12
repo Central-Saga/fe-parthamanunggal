@@ -25,14 +25,20 @@ export const tabunganHarianColumns: ColumnDef<Tabungan>[] = [
   {
     id: 'actions',
     header: 'Aksi',
-    size: 120,
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/dashboard/tabungan/harian/${row.original.id}/edit`}>Edit</Link>
-        </Button>
-      </div>
-    ),
+    size: 140,
+    cell: ({ row, table }) => {
+      const onDelete = (table?.options?.meta as any)?.onDelete as ((id: number) => void) | undefined;
+      return (
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/dashboard/tabungan/harian/${row.original.id}/edit`}>Edit</Link>
+          </Button>
+          {onDelete && (
+            <Button size="sm" variant="destructive" onClick={() => onDelete(row.original.id)}>Hapus</Button>
+          )}
+        </div>
+      );
+    },
   },
 ];
 

@@ -11,6 +11,7 @@ export default function TabunganDepositoDataTable() {
       listUrl="/api/tabungan?jenis=deposito"
       createHref="/dashboard/tabungan/deposito/create"
       createLabel="Tambah Tabungan Deposito"
+      onDeleteUrl={(id) => `/api/tabungan/${id}`}
       searchPlaceholder="Cari tabungan..."
       emptyText="Belum ada tabungan deposito"
     />

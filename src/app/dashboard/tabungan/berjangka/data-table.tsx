@@ -11,6 +11,7 @@ export default function TabunganBerjangkaDataTable() {
       listUrl="/api/tabungan?jenis=berjangka"
       createHref="/dashboard/tabungan/berjangka/create"
       createLabel="Tambah Tabungan Berjangka"
+      onDeleteUrl={(id) => `/api/tabungan/${id}`}
       searchPlaceholder="Cari tabungan..."
       emptyText="Belum ada tabungan berjangka"
     />

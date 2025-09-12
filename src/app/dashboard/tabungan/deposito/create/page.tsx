@@ -1,9 +1,14 @@
+import TabunganForm from "@/app/dashboard/tabungan/_components/tabungan-form";
+
 export default function TabunganDepositoCreatePage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Buat Tabungan Deposito</h1>
-      <p className="text-sm text-muted-foreground">Form pembuatan tabungan deposito (placeholder).</p>
-    </div>
+    <TabunganForm
+      jenisKey="deposito"
+      mode="create"
+      backHref="/dashboard/tabungan/deposito"
+      title="Buat Tabungan Deposito"
+      subtitle="Isi data tabungan deposito"
+    />
   );
 }
 

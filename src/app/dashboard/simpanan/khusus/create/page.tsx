@@ -1,9 +1,14 @@
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananKhususCreatePage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Buat Simpanan Khusus</h1>
-      <p className="text-sm text-muted-foreground">Form pembuatan simpanan khusus (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="khusus"
+      mode="create"
+      backHref="/dashboard/simpanan/khusus"
+      title="Buat Simpanan Khusus"
+      subtitle="Isi data simpanan khusus"
+    />
   );
 }
 

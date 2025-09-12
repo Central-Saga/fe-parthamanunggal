@@ -1,9 +1,14 @@
+import SimpananForm from "@/app/dashboard/simpanan/_components/simpanan-form";
+
 export default function SimpananBerjangkaCreatePage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Buat Simpanan Berjangka</h1>
-      <p className="text-sm text-muted-foreground">Form pembuatan simpanan berjangka (placeholder).</p>
-    </div>
+    <SimpananForm
+      jenisKey="berjangka"
+      mode="create"
+      backHref="/dashboard/simpanan/berjangka"
+      title="Buat Simpanan Berjangka"
+      subtitle="Isi data simpanan berjangka"
+    />
   );
 }
 

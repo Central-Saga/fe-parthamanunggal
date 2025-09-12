@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import TabunganForm from "@/app/dashboard/tabungan/_components/tabungan-form";
+
 export default function TabunganHarianEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Tabungan Harian</h1>
-      <p className="text-sm text-muted-foreground">Form edit tabungan harian (placeholder).</p>
-    </div>
+    <TabunganForm
+      jenisKey="harian"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/tabungan/harian"
+      title="Edit Tabungan Harian"
+      subtitle="Perbarui data tabungan harian"
+    />
   );
 }
 

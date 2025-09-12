@@ -1,9 +1,18 @@
+"use client";
+import { useParams } from "next/navigation";
+import TabunganForm from "@/app/dashboard/tabungan/_components/tabungan-form";
+
 export default function TabunganBerjangkaEditPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Edit Tabungan Berjangka</h1>
-      <p className="text-sm text-muted-foreground">Form edit tabungan berjangka (placeholder).</p>
-    </div>
+    <TabunganForm
+      jenisKey="berjangka"
+      mode="edit"
+      id={id}
+      backHref="/dashboard/tabungan/berjangka"
+      title="Edit Tabungan Berjangka"
+      subtitle="Perbarui data tabungan berjangka"
+    />
   );
 }
 

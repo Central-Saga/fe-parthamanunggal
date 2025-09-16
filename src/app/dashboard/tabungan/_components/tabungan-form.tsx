@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/api";
 import type { Anggota } from "@/types/anggota";
 import type { Tabungan } from "@/types/tabungan";
 import type { TabunganKey } from "@/lib/jenisTabungan";
-import { getTabunganJenisIdFromEnv, resolveTabunganJenisId } from "@/lib/jenisTabungan";
+import { getTabunganJenisIdFromEnv, resolveTabunganJenisId, getTabunganJenisIdRuntime } from "@/lib/jenisTabungan";
 
 export type TabunganFormProps = {
   jenisKey: TabunganKey; // 'harian' | 'berjangka' | 'deposito'
@@ -86,7 +86,9 @@ export default function TabunganForm({ jenisKey, mode, id, backHref, title, subt
         status: Number(form.status),
       };
       if (mode === "create") {
-        let jenisId = getTabunganJenisIdFromEnv(jenisKey);
+        // Prefer runtime-resolved ID (server reads env); then fallback
+        let jenisId = await getTabunganJenisIdRuntime(jenisKey);
+        if (!jenisId) jenisId = getTabunganJenisIdFromEnv(jenisKey);
         if (!jenisId) jenisId = await resolveTabunganJenisId(jenisKey);
         if (!jenisId) throw new Error("Jenis tabungan tidak ditemukan. Set env NEXT_PUBLIC_JENIS_TABUNGAN_... atau pastikan endpoint jenis tersedia.");
         await apiRequest("POST", "/api/tabungans", { ...basePayload, jenis_tabungan_id: jenisId });

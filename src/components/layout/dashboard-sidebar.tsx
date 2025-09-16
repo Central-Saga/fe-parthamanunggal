@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react"; // ⬅️ tambahkan useEffect
+import { useEffect, useMemo, useRef, useState } from "react"; // ⬅️ tambahkan useEffect
 import { getJenisIdFromEnv, fetchJenisById } from "@/lib/jenisSimpanan";
 import {
   LayoutDashboard,
@@ -14,7 +14,11 @@ import {
   BadgeCheck,
   UserPlus,
   ChevronDown,
+  Bell,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
+import { logout } from "@/lib/auth";
 
 type Item = {
   label: string;
@@ -136,12 +140,12 @@ export default function DashboardSidebar() {
 
   return (
     <aside className="h-screen sticky top-0 w-[248px] shrink-0 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="p-4 flex flex-col gap-6">
+      <div className="p-4 flex h-full flex-col gap-6">
         <div className="flex items-center justify-center pt-2">
           <Image src="/logo_koperasi.png" alt="logo koperasi" width={128} height={128} className="rounded" />
         </div>
 
-        <nav className="flex flex-col gap-6">
+        <nav className="flex flex-col gap-6 flex-1">
           <div>
             <div className="px-3 pb-2 text-xs font-medium tracking-wide text-muted-foreground">Menu</div>
             <ul className="space-y-1">
@@ -184,6 +188,8 @@ export default function DashboardSidebar() {
             </ul>
           </div>
         </nav>
+
+        <ProfileMenu />
       </div>
     </aside>
   );
@@ -211,6 +217,65 @@ function SidebarItem({
       {Icon ? <Icon className="size-4" /> : null}
       <span className="font-medium">{children}</span>
     </Link>
+  );
+}
+
+function ProfileMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  return (
+    <div className="mt-auto" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-muted text-foreground"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <div className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300">
+          <UserIcon className="h-4 w-4" />
+        </div>
+        <div className="flex-1 text-left">
+          <div className="text-sm font-medium leading-none">Profil</div>
+          <div className="text-xs text-muted-foreground">Akun & notifikasi</div>
+        </div>
+        <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="mt-2 mx-2 rounded-xl border bg-popover text-popover-foreground shadow-md overflow-hidden"
+        >
+          <a
+            href="/dashboard/notifikasi"
+            className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/80"
+            role="menuitem"
+          >
+            <Bell className="h-4 w-4 text-muted-foreground" />
+            <span>Notifikasi</span>
+          </a>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-sm hover:bg-red-50 text-foreground"
+            role="menuitem"
+          >
+            <LogOut className="h-4 w-4 text-red-600" />
+            <span className="text-red-700">Logout</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

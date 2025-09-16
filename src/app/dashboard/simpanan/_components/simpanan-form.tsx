@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/api";
 import type { Anggota } from "@/types/anggota";
 import type { Simpanan } from "@/types/simpanan";
 import type { JenisKey } from "@/lib/jenisSimpanan";
-import { getJenisIdFromEnv, resolveJenisId } from "@/lib/jenisSimpanan";
+import { getJenisIdFromEnv, resolveJenisId, getJenisIdRuntime } from "@/lib/jenisSimpanan";
 
 export type SimpananFormProps = {
   jenisKey: JenisKey; // e.g., 'wajib', 'pokok', 'sukarela', ...
@@ -51,10 +51,10 @@ export default function SimpananForm({ jenisKey, mode, id, backHref, title, subt
         if (mounted) setAnggotas(anggotaList);
 
         // Ensure jenis id exists for submit
-        let jId = getJenisIdFromEnv(jenisKey);
-        if (!jId) {
-          jId = await resolveJenisId(jenisKey);
-        }
+        // Try runtime mapping from server first, then env, then BE listing
+        let jId = await getJenisIdRuntime(jenisKey);
+        if (!jId) jId = getJenisIdFromEnv(jenisKey);
+        if (!jId) jId = await resolveJenisId(jenisKey);
         if (!jId && process.env.NODE_ENV !== 'production') {
           console.warn(`[simpanan-form] Jenis ID for '${jenisKey}' not found. Consider setting NEXT_PUBLIC_JENIS_${jenisKey.toUpperCase()} in .env.local`);
         }
@@ -102,7 +102,9 @@ export default function SimpananForm({ jenisKey, mode, id, backHref, title, subt
       };
 
       if (mode === "create") {
-        let jenisId = getJenisIdFromEnv(jenisKey);
+        // Prefer runtime-resolved ID (server reads env) then fallback to env/endpoint
+        let jenisId = await getJenisIdRuntime(jenisKey);
+        if (!jenisId) jenisId = getJenisIdFromEnv(jenisKey);
         if (!jenisId) jenisId = await resolveJenisId(jenisKey);
         if (!jenisId) throw new Error("Jenis simpanan tidak ditemukan. Mohon set env NEXT_PUBLIC_JENIS_... atau pastikan endpoint jenis tersedia.");
         await apiRequest("POST", "/api/simpanans", { ...basePayload, jenis_simpanan_id: jenisId });

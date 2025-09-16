@@ -93,3 +93,25 @@ export async function autoLoginIfEnabled(): Promise<boolean> {
   const ok = await loginWithSanctumSession(email, password);
   return ok;
 }
+
+export async function logout(): Promise<void> {
+  try {
+    // Try Laravel Sanctum logout endpoint first
+    try {
+      await apiRequest('POST', '/logout');
+    } catch {
+      // Some APIs expose token logout under /api/logout
+      try { await apiRequest('POST', '/api/logout'); } catch {}
+    }
+  } catch {}
+  // Clear client-side auth artifacts
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token_type');
+      localStorage.removeItem('user');
+    } catch {}
+    // Redirect to login
+    window.location.href = '/auth/login';
+  }
+}

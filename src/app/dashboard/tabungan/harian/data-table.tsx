@@ -10,13 +10,17 @@ export default function TabunganHarianDataTable() {
   const envId = getTabunganJenisIdFromEnv('harian');
   const initial = envId ? `/api/tabungans?jenis_tabungan_id=${envId}` : '/api/tabungans';
   const [url, setUrl] = useState<string>(initial);
+  const [createHref, setCreateHref] = useState<string>(`/dashboard/tabungan/harian/create${envId ? `?jenisId=${envId}` : ''}`);
   useEffect(() => {
     let mounted = true;
     async function set() {
       const runtimeId = await getTabunganJenisIdRuntime('harian');
       const id = envId ?? runtimeId ?? (await resolveTabunganJenisId('harian'));
       const built = id ? `/api/tabungans?jenis_tabungan_id=${id}` : '/api/tabungans';
-      if (mounted) setUrl(built);
+      if (mounted) {
+        setUrl(built);
+        setCreateHref(`/dashboard/tabungan/harian/create${id ? `?jenisId=${id}` : ''}`);
+      }
     }
     set();
     return () => { mounted = false };
@@ -25,7 +29,7 @@ export default function TabunganHarianDataTable() {
     <StandardDataTable<Tabungan>
       columns={tabunganHarianColumns}
       listUrl={url}
-      createHref="/dashboard/tabungan/harian/create"
+      createHref={createHref}
       createLabel="Tambah Tabungan Harian"
       onDeleteUrl={(id) => `/api/tabungans/${id}`}
       searchPlaceholder="Cari tabungan..."

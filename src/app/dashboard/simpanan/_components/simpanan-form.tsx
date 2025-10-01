@@ -102,12 +102,25 @@ export default function SimpananForm({ jenisKey, mode, id, backHref, title, subt
       };
 
       if (mode === "create") {
-        // Prefer runtime-resolved ID (server reads env) then fallback to env/endpoint
-        let jenisId = await getJenisIdRuntime(jenisKey);
-        if (!jenisId) jenisId = getJenisIdFromEnv(jenisKey);
+        // Resolve jenis id using the same priority as listing pages:
+        // 1) Query param override (?jenisId=)
+        // 2) Env mapping
+        // 3) Runtime server mapping
+        // 4) Resolve by name list as last resort
+        const url = new URL(window.location.href);
+        const qp = Number(url.searchParams.get('jenisId')) || null;
+        let jenisId = qp ?? getJenisIdFromEnv(jenisKey) ?? null;
+        if (!jenisId) jenisId = await getJenisIdRuntime(jenisKey);
         if (!jenisId) jenisId = await resolveJenisId(jenisKey);
         if (!jenisId) throw new Error("Jenis simpanan tidak ditemukan. Mohon set env NEXT_PUBLIC_JENIS_... atau pastikan endpoint jenis tersedia.");
-        await apiRequest("POST", "/api/simpanans", { ...basePayload, jenis_simpanan_id: jenisId });
+
+        // Preflight validate ID exists in backend (best-effort only; don't block on permission/visibility)
+        try {
+          await apiRequest('GET', `/api/jenis-simpanans/${jenisId}`);
+        } catch {
+          try { await apiRequest('GET', `/api/jenis_simpanans/${jenisId}`); } catch { /* ignore, backend will validate on create */ }
+        }
+        await apiRequest("POST", "/api/simpanans", { ...basePayload, jenis_simpanan_id: Number(jenisId) });
       } else {
         // Pada update, hindari mengirim jenis_simpanan_id jika backend tidak mengizinkan ubah jenis
         await apiRequest("PUT", `/api/simpanans/${id}`, basePayload);

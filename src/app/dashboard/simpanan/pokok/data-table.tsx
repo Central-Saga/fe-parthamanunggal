@@ -10,6 +10,7 @@ export default function SimpananPokokDataTable() {
   const envId = getJenisIdFromEnv('pokok');
   const initial = envId ? `/api/simpanans?jenis_simpanan_id=${envId}` : '/api/simpanans';
   const [url, setUrl] = useState<string>(initial);
+  const [createHref, setCreateHref] = useState<string>(`/dashboard/simpanan/pokok/create${envId ? `?jenisId=${envId}` : ''}`);
   useEffect(() => {
     let mounted = true;
     async function set() {
@@ -17,7 +18,10 @@ export default function SimpananPokokDataTable() {
       const runtimeId = await getJenisIdRuntime('pokok');
       const id = envId ?? runtimeId ?? (await resolveJenisId('pokok'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
-      if (mounted) setUrl(built);
+      if (mounted) {
+        setUrl(built);
+        setCreateHref(`/dashboard/simpanan/pokok/create${id ? `?jenisId=${id}` : ''}`);
+      }
     }
     set();
     return () => { mounted = false };
@@ -26,7 +30,7 @@ export default function SimpananPokokDataTable() {
     <StandardDataTable<Simpanan>
       columns={simpananPokokColumns}
       listUrl={url}
-      createHref="/dashboard/simpanan/pokok/create"
+      createHref={createHref}
       createLabel="Tambah Simpanan Pokok"
       onDeleteUrl={(id) => `/api/simpanans/${id}`}
       searchPlaceholder="Cari simpanan..."

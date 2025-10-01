@@ -14,13 +14,17 @@ export default function SimpananWajibKhususDataTable() {
   const initialId = qpId || envId || null;
   const initial = initialId ? `/api/simpanans?jenis_simpanan_id=${initialId}` : '/api/simpanans';
   const [url, setUrl] = useState<string>(initial);
+  const [createHref, setCreateHref] = useState<string>(`/dashboard/simpanan/wajib_khusus/create${initialId ? `?jenisId=${initialId}` : ''}`);
   useEffect(() => {
     let mounted = true;
     async function set() {
       const runtimeId = await getJenisIdRuntime('wajib_khusus');
       const id = qpId ?? envId ?? runtimeId ?? (await resolveJenisId('wajib_khusus'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
-      if (mounted) setUrl(built);
+      if (mounted) {
+        setUrl(built);
+        setCreateHref(`/dashboard/simpanan/wajib_khusus/create${id ? `?jenisId=${id}` : ''}`);
+      }
     }
     set();
     return () => { mounted = false };
@@ -29,7 +33,7 @@ export default function SimpananWajibKhususDataTable() {
     <StandardDataTable<Simpanan>
       columns={simpananWajibKhususColumns}
       listUrl={url}
-      createHref="/dashboard/simpanan/wajib_khusus/create"
+      createHref={createHref}
       createLabel="Tambah Simpanan Wajib Khusus"
       onDeleteUrl={(id) => `/api/simpanans/${id}`}
       searchPlaceholder="Cari simpanan..."

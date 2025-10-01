@@ -86,9 +86,11 @@ export default function TabunganForm({ jenisKey, mode, id, backHref, title, subt
         status: Number(form.status),
       };
       if (mode === "create") {
-        // Prefer runtime-resolved ID (server reads env); then fallback
-        let jenisId = await getTabunganJenisIdRuntime(jenisKey);
-        if (!jenisId) jenisId = getTabunganJenisIdFromEnv(jenisKey);
+        // Priority: query param (?jenisId=) -> env -> runtime -> resolve
+        const url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
+        const qp = url ? Number(url.searchParams.get('jenisId')) || null : null;
+        let jenisId = qp ?? getTabunganJenisIdFromEnv(jenisKey) ?? null;
+        if (!jenisId) jenisId = await getTabunganJenisIdRuntime(jenisKey);
         if (!jenisId) jenisId = await resolveTabunganJenisId(jenisKey);
         if (!jenisId) throw new Error("Jenis tabungan tidak ditemukan. Set env NEXT_PUBLIC_JENIS_TABUNGAN_... atau pastikan endpoint jenis tersedia.");
         await apiRequest("POST", "/api/tabungans", { ...basePayload, jenis_tabungan_id: jenisId });

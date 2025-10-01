@@ -1,34 +1,98 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Wallet, BookMarked } from "lucide-react";
+import { getJenisIdRuntime, getJenisIdFromEnv, resolveJenisId } from "@/lib/jenisSimpanan";
+import { ChartContainer, type ChartConfig, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 
+// Keep it simple: start with anggota count only
 type Summary = {
   anggota_count?: number;
-  users_count?: number;
-  simpanan_total?: number;
-  tabungan_total?: number;
-  latest_activities?: Array<{ id: number; title: string; time: string }>;
 };
 
 export default function DashboardHome() {
-  const [summary, setSummary] = useState<Summary | null>(null);
+  const [anggotaCount, setAnggotaCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [simpananByJenis, setSimpananByJenis] = useState<Array<{ key: string; label: string; total: number }>>([]);
+  const [loadingSimpanan, setLoadingSimpanan] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       try {
         setLoading(true);
-        const res = await apiRequest<Summary | { data: Summary }>("GET", "/api/dashboard/summary").catch(() => null);
-        const data = (res as any)?.data ? (res as any).data : res;
-        if (mounted) setSummary(data ?? null);
+        setError(null);
+        // Try multiple strategies/endpoints to get the total count reliably
+        const extractTotal = (r: any): number | null => {
+          const n =
+            Number(r?.data?.total) ??
+            Number(r?.meta?.total) ??
+            Number(r?.total) ??
+            Number(r?.pagination?.total) ??
+            Number(r?.data?.meta?.total) ??
+            null;
+          if (Number.isFinite(n)) return Number(n);
+          if (Array.isArray(r?.data)) return r.data.length;
+          if (Array.isArray(r)) return r.length;
+          return null;
+        };
+
+        async function tryCount(): Promise<number | null> {
+          // 1) Dedicated count endpoints (if available)
+          for (const ep of [
+            "/api/anggotas/count",
+            "/api/anggota/count",
+          ]) {
+            try {
+              const r: any = await apiRequest("GET", ep);
+              const val = Number(r?.count ?? r?.total ?? r?.data?.count);
+              if (Number.isFinite(val)) return val;
+            } catch {}
+          }
+          // 2) Paginated endpoints, different param names
+          const bases = ["/api/anggotas", "/api/anggota"];
+          const queries = [
+            "?page=1&per_page=1",
+            "?page=1&perPage=1",
+            "?page=1&limit=1",
+            "?page=1&page_size=1",
+            "?per_page=1",
+          ];
+          for (const b of bases) {
+            for (const q of queries) {
+              try {
+                const r: any = await apiRequest("GET", `${b}${q}`);
+                const t = extractTotal(r);
+                if (t != null) return t;
+              } catch {}
+            }
+          }
+          // 3) Fallback: first page length (not accurate for total, but better than 0)
+          for (const b of bases) {
+            try {
+              const r: any = await apiRequest("GET", `${b}?page=1`);
+              const t = extractTotal(r);
+              if (t != null) return t;
+            } catch {}
+          }
+          return null;
+        }
+
+        const total = await tryCount();
+        if (mounted) setAnggotaCount(total ?? 0);
+      } catch (e: any) {
+        if (mounted) {
+          setError(e?.message || "Gagal memuat jumlah anggota");
+          setAnggotaCount(null);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -39,7 +103,60 @@ export default function DashboardHome() {
     };
   }, []);
 
-  const currency = (n?: number) => (typeof n === "number" ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(n) : "-");
+  useEffect(() => {
+    let mounted = true;
+    async function loadSimpanan() {
+      setLoadingSimpanan(true);
+      try {
+        const jenisKeys = [
+          "sukarela",
+          "wajib_usaha",
+          "berjangka",
+          "pokok",
+          "wajib",
+          "wajib_khusus",
+          "khusus",
+          "modal",
+        ] as const;
+
+        const labelForKey: Record<typeof jenisKeys[number], string> = {
+          sukarela: "Sukarela",
+          wajib_usaha: "Wajib Usaha",
+          berjangka: "Berjangka",
+          pokok: "Pokok",
+          wajib: "Wajib",
+          wajib_khusus: "Wajib Khusus",
+          khusus: "Khusus",
+          modal: "Modal",
+        };
+
+        // Build mapping of available jenis from env ids
+        const entries = await Promise.all(
+          jenisKeys.map(async (key) => {
+            // Prefer runtime mapping from server env, then client env, then resolve by name list
+            let id = await getJenisIdRuntime(key);
+            if (!id) id = getJenisIdFromEnv(key);
+            if (!id) id = await resolveJenisId(key);
+            if (!id) return null;
+            // Use fixed label matching sidebar so UI stays consistent
+            // regardless of backend seed names (which may be lorem ipsum).
+            const label = labelForKey[key];
+            // Sum all nominal for this jenis (paginate if needed)
+            const total = await sumSimpananForJenis(id);
+            return { key, label, total } as { key: string; label: string; total: number };
+          })
+        );
+        const filtered = entries.filter(Boolean) as Array<{ key: string; label: string; total: number }>;
+        if (mounted) setSimpananByJenis(filtered);
+      } finally {
+        if (mounted) setLoadingSimpanan(false);
+      }
+    }
+    loadSimpanan();
+    return () => { mounted = false };
+  }, []);
+
+  const maxSimpanan = useMemo(() => simpananByJenis.reduce((m, x) => Math.max(m, x.total), 0), [simpananByJenis]);
 
   return (
     <div className="p-6 space-y-6">
@@ -50,65 +167,50 @@ export default function DashboardHome() {
         </div>
       </div>
 
+      {error && (
+        <Card className="border">
+          <CardContent className="p-4 text-sm text-red-600">{error}</CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={<Users className="size-4" />} title="Anggota" value={loading ? "-" : String(summary?.anggota_count ?? "-")} href="/dashboard/anggota" />
-        <StatCard icon={<Users className="size-4" />} title="Users" value={loading ? "-" : String(summary?.users_count ?? "-")} href="/dashboard/users" />
-        <StatCard icon={<Wallet className="size-4" />} title="Total Simpanan" value={loading ? "-" : currency(summary?.simpanan_total)} href="/dashboard/simpanan/wajib" />
-        <StatCard icon={<BookMarked className="size-4" />} title="Total Tabungan" value={loading ? "-" : currency(summary?.tabungan_total)} href="/dashboard/tabungan/harian" />
+        <StatCard icon={<Users className="size-4" />} title="Anggota" value={loading ? "-" : String(anggotaCount ?? "-")} href="/dashboard/anggota" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-2">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium">Aktivitas Terbaru</div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/dashboard/laporan">Lihat Semua</Link>
-              </Button>
+      <Card className="border">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium">Simpanan per Jenis</div>
+            {loadingSimpanan && <div className="text-xs text-muted-foreground">Memuat…</div>}
+          </div>
+          {!loadingSimpanan && simpananByJenis.length === 0 && (
+            <div className="text-sm text-muted-foreground">Belum ada data.</div>
+          )}
+          {!loadingSimpanan && simpananByJenis.length > 0 && (
+            <div className="h-[360px]">
+              <ChartContainer
+                config={{ total: { label: "Total", color: "#10B981" } } satisfies ChartConfig}
+                className="h-full w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={simpananByJenis.map((d) => ({ ...d, total: Number(d.total || 0) }))}
+                    layout="vertical"
+                    margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+                  >
+                    <XAxis type="number" hide tickFormatter={(v) => formatCurrency(v as number)} />
+                    <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: 'hsl(0 0% 96%)' }} content={<ChartTooltipContent valueFormatter={(v) => formatCurrency(v)} />} />
+                    <Bar dataKey="total" radius={4} fill="var(--color-total)">
+                      <LabelList dataKey="total" position="right" formatter={(v: number) => formatCurrency(v)} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
             </div>
-            {loading && <div className="text-sm text-muted-foreground">Memuat...</div>}
-            {!loading && (!summary?.latest_activities || summary.latest_activities.length === 0) && (
-              <div className="text-sm text-muted-foreground">Belum ada data.</div>
-            )}
-            {!loading && summary?.latest_activities && summary.latest_activities.length > 0 && (
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead>Judul</TableHead>
-                      <TableHead>Waktu</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {summary.latest_activities.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>{a.title}</TableCell>
-                        <TableCell className="text-muted-foreground">{new Date(a.time).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium">Akses Cepat</div>
-              <Badge variant="secondary">Shortcut</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <Button asChild variant="outline"><Link href="/dashboard/anggota">Anggota</Link></Button>
-              <Button asChild variant="outline"><Link href="/dashboard/simpanan/wajib">Simpanan</Link></Button>
-              <Button asChild variant="outline"><Link href="/dashboard/tabungan/harian">Tabungan</Link></Button>
-              <Button asChild variant="outline"><Link href="/dashboard/laporan">Laporan</Link></Button>
-              <Button asChild variant="outline"><Link href="/dashboard/users">Users</Link></Button>
-              <Button asChild variant="outline"><Link href="/dashboard/roles">Roles</Link></Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -128,5 +230,57 @@ function StatCard({ icon, title, value, href }: { icon: React.ReactNode; title: 
       </CardContent>
     </Card>
   );
+}
+
+function formatCurrency(n?: number) {
+  return typeof n === 'number'
+    ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(n)
+    : '-';
+}
+
+async function sumSimpananForJenis(jenisId: number): Promise<number> {
+  // Iterate pages to sum all nominal
+  let page = 1;
+  const perPageVariants = [100, 50, 25, 10];
+  let total = 0;
+  let lastPage = 1;
+  const pickArray = (r: any): any[] | null => {
+    if (Array.isArray(r)) return r;
+    if (Array.isArray(r?.data?.data)) return r.data.data;
+    if (Array.isArray(r?.data)) return r.data;
+    return null;
+  };
+  const pickLast = (r: any): number | null => (
+    Number(r?.data?.last_page) || Number(r?.meta?.last_page) || Number(r?.last_page) || Number(r?.pagination?.last_page) || null
+  );
+  for (const per of perPageVariants) {
+    try {
+      const first: any = await apiRequest('GET', `/api/simpanans?jenis_simpanan_id=${jenisId}&page=1&per_page=${per}`);
+      const items1 = pickArray(first) ?? [];
+      lastPage = pickLast(first) || 1;
+      for (const it of items1) {
+        const v = Number.parseFloat(String(it?.nominal ?? '0'));
+        if (!Number.isNaN(v)) total += v;
+      }
+      break;
+    } catch {
+      // try next per_page variant
+    }
+  }
+  if (lastPage > 1) {
+    for (page = 2; page <= lastPage; page++) {
+      try {
+        const r: any = await apiRequest('GET', `/api/simpanans?jenis_simpanan_id=${jenisId}&page=${page}&per_page=100`);
+        const items = pickArray(r) ?? [];
+        for (const it of items) {
+          const v = Number.parseFloat(String(it?.nominal ?? '0'));
+          if (!Number.isNaN(v)) total += v;
+        }
+      } catch {
+        break;
+      }
+    }
+  }
+  return total;
 }
 

@@ -10,6 +10,7 @@ export default function SimpananKhususDataTable() {
   const envId = getJenisIdFromEnv('khusus');
   const initial = envId ? `/api/simpanans?jenis_simpanan_id=${envId}` : '/api/simpanans';
   const [url, setUrl] = useState<string>(initial);
+  const [createHref, setCreateHref] = useState<string>(`/dashboard/simpanan/khusus/create${envId ? `?jenisId=${envId}` : ''}`);
   useEffect(() => {
     let mounted = true;
     async function set() {
@@ -17,7 +18,10 @@ export default function SimpananKhususDataTable() {
       const runtimeId = await getJenisIdRuntime('khusus');
       const id = envId ?? runtimeId ?? (await resolveJenisId('khusus'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
-      if (mounted) setUrl(built);
+      if (mounted) {
+        setUrl(built);
+        setCreateHref(`/dashboard/simpanan/khusus/create${id ? `?jenisId=${id}` : ''}`);
+      }
     }
     set();
     return () => { mounted = false };
@@ -26,7 +30,7 @@ export default function SimpananKhususDataTable() {
     <StandardDataTable<Simpanan>
       columns={simpananKhususColumns}
       listUrl={url}
-      createHref="/dashboard/simpanan/khusus/create"
+      createHref={createHref}
       createLabel="Tambah Simpanan Khusus"
       onDeleteUrl={(id) => `/api/simpanans/${id}`}
       searchPlaceholder="Cari simpanan..."

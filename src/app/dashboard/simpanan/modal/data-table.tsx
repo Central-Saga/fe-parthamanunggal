@@ -10,6 +10,7 @@ export default function SimpananModalDataTable() {
   const envId = getJenisIdFromEnv('modal');
   const initial = envId ? `/api/simpanans?jenis_simpanan_id=${envId}` : '/api/simpanans';
   const [url, setUrl] = useState<string>(initial);
+  const [createHref, setCreateHref] = useState<string>(`/dashboard/simpanan/modal/create${envId ? `?jenisId=${envId}` : ''}`);
   useEffect(() => {
     let mounted = true;
     async function set() {
@@ -17,7 +18,10 @@ export default function SimpananModalDataTable() {
       const runtimeId = await getJenisIdRuntime('modal');
       const id = envId ?? runtimeId ?? (await resolveJenisId('modal'));
       const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
-      if (mounted) setUrl(built);
+      if (mounted) {
+        setUrl(built);
+        setCreateHref(`/dashboard/simpanan/modal/create${id ? `?jenisId=${id}` : ''}`);
+      }
     }
     set();
     return () => { mounted = false };
@@ -26,7 +30,7 @@ export default function SimpananModalDataTable() {
     <StandardDataTable<Simpanan>
       columns={simpananModalColumns}
       listUrl={url}
-      createHref="/dashboard/simpanan/modal/create"
+      createHref={createHref}
       createLabel="Tambah Simpanan Modal"
       onDeleteUrl={(id) => `/api/simpanans/${id}`}
       searchPlaceholder="Cari simpanan..."

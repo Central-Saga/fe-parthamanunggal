@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ export default function GenerateBungaPage() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [disabled, setDisabled] = useState(false);
+  const [summary, setSummary] = useState<{ processed?: number; skipped?: number; details?: Array<any> } | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,11 +28,16 @@ export default function GenerateBungaPage() {
       setError('Bulan dan Tahun wajib diisi');
       return;
     }
-    const q = new URLSearchParams({ month: String(month), year: String(year) });
-    if (saving) q.set('saving', saving);
     try {
-      const res = await apiRequest<{ message?: string; processed?: number }>('POST', `/api/internal/interest/run?${q.toString()}`, {});
-      setOk(res?.message ?? `Diproses: ${res?.processed ?? 0}`);
+      const body: any = { month, year };
+      if (saving) body.saving = Number(saving);
+      const res = await apiRequest<{ message?: string; processed?: number; skipped?: number; details?: Array<any> }>(
+        'POST',
+        `/api/internal/interest/run`,
+        body
+      );
+      setOk(res?.message ?? 'OK');
+      setSummary({ processed: res?.processed, skipped: res?.skipped, details: res?.details });
     } catch (e: any) {
       if (e?.response?.status === 404) {
         setDisabled(true);
@@ -77,7 +83,39 @@ export default function GenerateBungaPage() {
                 {disabled ? 'Endpoint belum tersedia' : (loading ? 'Memproses...' : 'Trigger Generate')}
               </Button>
               {error && <div className="text-sm text-red-600">{error}</div>}
-              {ok && <div className="text-sm text-emerald-700">{ok}</div>}
+              {ok && (
+                <div className="space-y-2">
+                  <div className="text-sm text-emerald-700">{ok}{summary ? ` — diproses: ${summary.processed ?? 0}${typeof summary.skipped === 'number' ? `, dilewati: ${summary.skipped}` : ''}` : ''}</div>
+                  {summary?.details && Array.isArray(summary.details) && summary.details.length > 0 && (
+                    <div className="overflow-x-auto rounded-md border">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Tabungan ID</th>
+                            <th className="px-3 py-2 text-left">Status</th>
+                            <th className="px-3 py-2 text-left">Saldo Minimum</th>
+                            <th className="px-3 py-2 text-left">Rate</th>
+                            <th className="px-3 py-2 text-left">Jumlah Bunga</th>
+                            <th className="px-3 py-2 text-left">Keterangan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summary.details.map((d: any, i: number) => (
+                            <tr key={i}>
+                              <td className="px-3 py-2">{d.tabungan_id ?? '-'}</td>
+                              <td className="px-3 py-2">{d.status ?? '-'}</td>
+                              <td className="px-3 py-2">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(d.saldo_minimum || 0))}</td>
+                              <td className="px-3 py-2">{typeof d.rate === 'number' ? `${(d.rate <= 1 ? d.rate * 100 : d.rate)}%` : '-'}</td>
+                              <td className="px-3 py-2">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(d.jumlah_bunga || 0))}</td>
+                              <td className="px-3 py-2">{d.reason || d.tanggal_posting || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
             )}
           </CardContent>

@@ -9,6 +9,7 @@ export interface TransaksiTabungan {
   nominal: string; // decimal(15,2) as string to preserve precision
   tanggal: string; // date (YYYY-MM-DD)
   keterangan?: string | null; // text, nullable
+  saving_interest_id?: number | null; // FK ke bunga_tabungan.id, opsional
   created_at: string; // timestamp (ISO string)
   updated_at: string; // timestamp (ISO string)
 }

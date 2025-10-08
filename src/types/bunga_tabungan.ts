@@ -8,7 +8,9 @@ export interface BungaTabungan {
   bulan: number; // smallInteger (1-12)
   tahun: number; // smallInteger (e.g., 2025)
   saldo_minimum: string; // decimal(15,2) as string to preserve precision
-  persentase: string; // decimal(5,2) as string (percentage)
+  // BE now returns effective rate (ratio) and may include original persisted value
+  persentase: string | number; // decimal ratio, e.g. 0.02
+  persentase_original?: string | number; // optional, for debugging
   jumlah_bunga: string; // decimal(15,2) as string
   created_at: string; // timestamp (ISO string)
   updated_at: string; // timestamp (ISO string)

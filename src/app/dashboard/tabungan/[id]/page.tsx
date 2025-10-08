@@ -178,7 +178,11 @@ export default function TabunganDetailPage() {
   }
 
   function isBungaTrx(t: TransaksiTabungan): boolean {
+    // Prefer explicit link from backend when available
+    if (t.saving_interest_id && Number(t.saving_interest_id) > 0) return true;
+    // Fallbacks for older payloads: setor at EOM or keterangan contains marker
     if (String(t.tipe).toLowerCase() !== 'setor') return false;
+    if (t.keterangan && /bunga\s+bulanan/i.test(t.keterangan)) return true;
     const d = new Date(t.tanggal);
     if (Number.isNaN(d.getTime())) return false;
     const day = d.getDate();
@@ -196,9 +200,13 @@ export default function TabunganDetailPage() {
     setGenError(null);
     setGenOk(null);
     try {
-      const q = `?month=${month}&year=${year}&saving=${id}`;
-      const res = await apiRequest<{ message?: string; processed?: number }>('POST', `/api/internal/interest/run${q}`, {});
-      setGenOk(res?.message ?? `Diproses: ${res?.processed ?? 0}`);
+      const res = await apiRequest<{ message?: string; processed?: number; skipped?: number; details?: any[] }>(
+        'POST',
+        `/api/internal/interest/run`,
+        { month, year, saving: id }
+      );
+      const msg = `${res?.message ?? 'OK'} — diproses: ${res?.processed ?? 0}${typeof res?.skipped === 'number' ? `, dilewati: ${res.skipped}` : ''}`;
+      setGenOk(msg);
     } catch (e: any) {
       const status = e?.response?.status;
       if (status === 404) {

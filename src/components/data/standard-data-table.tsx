@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef, ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import type { FilterFn } from "@tanstack/react-table";
 import { apiRequest } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,8 @@ export type StandardDataTableProps<T extends Record<string, any>> = {
   onDeleteUrl?: (id: string | number) => string;
   searchPlaceholder?: string;
   emptyText?: string;
+  // Optional extra projector to include custom fields into global search
+  globalSearchProjector?: (row: T) => Array<string | number>;
 };
 
 export default function StandardDataTable<T extends Record<string, any>>({
@@ -34,6 +37,7 @@ export default function StandardDataTable<T extends Record<string, any>>({
   onDeleteUrl,
   searchPlaceholder = "Filter...",
   emptyText = "Tidak ada data",
+  globalSearchProjector,
 }: StandardDataTableProps<T>) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +78,36 @@ export default function StandardDataTable<T extends Record<string, any>>({
     };
   }, [listUrl]);
 
+  // Build a robust global search text from the row object + optional projector
+  function rowToSearchText(row: T): string {
+    const extra = globalSearchProjector ? globalSearchProjector(row) : [];
+    const parts: string[] = [];
+    function walk(v: unknown, depth = 0) {
+      if (depth > 3) return; // avoid deep recursion
+      if (v == null) return;
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+        parts.push(String(v));
+        return;
+      }
+      if (Array.isArray(v)) {
+        for (const it of v) walk(it, depth + 1);
+        return;
+      }
+      if (typeof v === 'object') {
+        try {
+          for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+            // include keys like 'nama', 'name', etc., to improve hits
+            if (/^(nama|name|title|label)$/i.test(k)) parts.push(k);
+            walk(val, depth + 1);
+          }
+        } catch {}
+      }
+    }
+    walk(row);
+    for (const x of extra) parts.push(String(x));
+    return parts.join(' ').toLowerCase();
+  }
+
   const selectionCol = useMemo<ColumnDef<T>>(
     () => ({
       id: "select",
@@ -108,6 +142,13 @@ export default function StandardDataTable<T extends Record<string, any>>({
     }
   }
 
+  const globalLooseIncludes: FilterFn<T> = (row, _columnId, filterValue) => {
+    const needle = String(filterValue ?? '').trim().toLowerCase();
+    if (!needle) return true;
+    const hay = rowToSearchText(row.original as T);
+    return hay.includes(needle);
+  };
+
   const table = useReactTable({
     data,
     columns,
@@ -118,6 +159,7 @@ export default function StandardDataTable<T extends Record<string, any>>({
       globalFilter,
       rowSelection,
     },
+    globalFilterFn: globalLooseIncludes,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,

@@ -63,6 +63,7 @@ export default function DashboardSidebar() {
           { label: "Harian", href: "/dashboard/tabungan/harian" },
           { label: "Berjangka", href: "/dashboard/tabungan/berjangka" },
           { label: "Deposito", href: "/dashboard/tabungan/deposito" },
+          { label: "Bunga Tabungan", href: "/dashboard/bunga-tabungan" },
         ],
       },
       { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: FileText },
@@ -164,11 +165,21 @@ export default function DashboardSidebar() {
                       open={open[item.label]}
                       onToggle={() => setOpen((o) => ({ ...o, [item.label]: !o[item.label] }))}
                     >
-                      {item.children.map((c) => (
-                        <SidebarLink key={c.label} href={c.href!} active={isActive(pathname, c.href)}>
-                          {c.label}
-                        </SidebarLink>
-                      ))}
+                      {item.children.map((c) => {
+                        const link = (
+                          <SidebarLink key={c.label} href={c.href!} active={isActive(pathname, c.href)}>
+                            {c.label}
+                          </SidebarLink>
+                        );
+                        if (c.label === 'Bunga Tabungan') {
+                          return (
+                            <PermissionGate key={c.label} required={["mengelola bunga"]}>
+                              {link}
+                            </PermissionGate>
+                          );
+                        }
+                        return link;
+                      })}
                     </Collapsible>
                   ) : item.label === 'Pengaturan Bunga' ? (
                     <PermissionGate required={["mengelola pengaturan"]}>

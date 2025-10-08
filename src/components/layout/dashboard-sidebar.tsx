@@ -19,6 +19,8 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { logout } from "@/lib/auth";
+import PermissionGate from "@/components/permission-gate";
+import { isInterestTriggerEnabled } from "@/lib/config";
 
 type Item = {
   label: string;
@@ -63,6 +65,7 @@ export default function DashboardSidebar() {
           { label: "Deposito", href: "/dashboard/tabungan/deposito" },
         ],
       },
+      { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: FileText },
       { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
     ],
     []
@@ -108,6 +111,8 @@ export default function DashboardSidebar() {
       { label: "Users", href: "/dashboard/users", icon: Users },
       { label: "Roles", href: "/dashboard/roles", icon: BadgeCheck },
       { label: "Anggota", href: "/dashboard/anggota", icon: UserPlus },
+      // Conditionally show Generate Bunga based on env feature flag
+      ...(isInterestTriggerEnabled() ? [{ label: "Generate Bunga", href: "/dashboard/generate-bunga", icon: FileText }] as Item[] : []),
     ],
     []
   );
@@ -165,6 +170,12 @@ export default function DashboardSidebar() {
                         </SidebarLink>
                       ))}
                     </Collapsible>
+                  ) : item.label === 'Pengaturan Bunga' ? (
+                    <PermissionGate required={["mengelola pengaturan"]}>
+                      <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
+                        {item.label}
+                      </SidebarItem>
+                    </PermissionGate>
                   ) : (
                     <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
                       {item.label}
@@ -178,13 +189,26 @@ export default function DashboardSidebar() {
           <div>
             <div className="px-3 pb-2 text-xs font-medium tracking-wide text-muted-foreground">Admin</div>
             <ul className="space-y-1">
-              {admin.map((item) => (
-                <li key={item.label}>
-                  <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
-                    {item.label}
-                  </SidebarItem>
-                </li>
-              ))}
+              {admin.map((item) => {
+                if (item.label === 'Generate Bunga') {
+                  return (
+                    <li key={item.label}>
+                      <PermissionGate required={["mengelola bunga"]}>
+                        <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
+                          {item.label}
+                        </SidebarItem>
+                      </PermissionGate>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={item.label}>
+                    <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
+                      {item.label}
+                    </SidebarItem>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </nav>

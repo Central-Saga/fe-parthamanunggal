@@ -115,3 +115,46 @@ export async function logout(): Promise<void> {
     window.location.href = '/auth/login';
   }
 }
+
+// Dedicated login using API token + roles/permissions payload
+export async function loginEmailPasswordApi(
+  email: string,
+  password: string
+): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const res = await apiRequest<any>('POST', '/api/login', { email, password });
+    const token: string | undefined = res?.access_token || res?.token;
+    const type: string = res?.token_type || 'Bearer';
+    const user = res?.user ?? null;
+    const roles: string[] = Array.isArray(res?.roles) ? res.roles : [];
+    const permissions: string[] = Array.isArray(res?.permissions) ? res.permissions : [];
+    if (typeof window !== 'undefined') {
+      if (token) localStorage.setItem('access_token', token);
+      if (type) localStorage.setItem('token_type', type);
+      if (user) localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('roles', JSON.stringify(roles));
+      localStorage.setItem('permissions', JSON.stringify(permissions));
+    }
+    return { ok: Boolean(token) };
+  } catch (e: any) {
+    const msg = e?.response?.data?.message || e?.message || 'Login gagal';
+    return { ok: false, message: String(msg) };
+  }
+}
+
+export function getClientPermissions(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('permissions');
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? (arr as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function hasPermission(perm: string): boolean {
+  const ps = getClientPermissions();
+  return ps.includes(perm);
+}

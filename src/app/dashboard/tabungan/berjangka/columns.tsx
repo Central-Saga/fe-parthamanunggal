@@ -36,6 +36,9 @@ export const tabunganBerjangkaColumns: ColumnDef<Tabungan>[] = [
       return (
         <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="outline">
+            <Link href={`/dashboard/tabungan/${row.original.id}`}>Detail</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
             <Link href={`/dashboard/tabungan/berjangka/${row.original.id}/edit`}>Edit</Link>
           </Button>
           {onDelete && (

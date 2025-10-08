@@ -43,3 +43,8 @@ export function shouldProxyApiThroughNext() {
   const viaSanctum = process.env.NEXT_PUBLIC_USE_SANCTUM === '1';
   return Boolean(viaServer || viaSanctum);
 }
+
+// Feature flag: enable interest trigger UI/integration
+export function isInterestTriggerEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_INTEREST_TRIGGER === '1';
+}

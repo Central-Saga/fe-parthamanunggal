@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { logout } from "@/lib/auth";
 import PermissionGate from "@/components/permission-gate";
-import { isInterestTriggerEnabled } from "@/lib/config";
 
 type Item = {
   label: string;
@@ -112,8 +111,7 @@ export default function DashboardSidebar() {
       { label: "Users", href: "/dashboard/users", icon: Users },
       { label: "Roles", href: "/dashboard/roles", icon: BadgeCheck },
       { label: "Anggota", href: "/dashboard/anggota", icon: UserPlus },
-      // Conditionally show Generate Bunga based on env feature flag
-      ...(isInterestTriggerEnabled() ? [{ label: "Generate Bunga", href: "/dashboard/generate-bunga", icon: FileText }] as Item[] : []),
+      { label: "Generate Bunga", href: "/dashboard/generate-bunga", icon: FileText },
     ],
     []
   );

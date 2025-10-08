@@ -5,32 +5,53 @@ import { apiRequest } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/permission-gate';
-import { isInterestTriggerEnabled } from '@/lib/config';
 
 export default function GenerateBungaPage() {
+  const now = new Date();
+  const [month, setMonth] = useState<number>(now.getMonth() + 1);
+  const [year, setYear] = useState<number>(now.getFullYear());
+  const [savingId, setSavingId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [disabled, setDisabled] = useState(false);
   const [summary, setSummary] = useState<{ processed?: number; skipped?: number; details?: Array<any> } | null>(null);
 
+  function lastDayOfMonth(y: number, m: number) {
+    return new Date(y, m, 0).getDate();
+  }
+
+  function fmt(d: Date) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  const acuanDate = (() => {
+    const d = new Date(year, month - 1, 1);
+    d.setMonth(d.getMonth() - 2);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    return new Date(y, m - 1, lastDayOfMonth(y, m));
+  })();
+
+  const postingDate = new Date(year, month - 1, lastDayOfMonth(year, month));
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setOk(null);
-    const form = e.target as HTMLFormElement;
-    const month = Number((form.elements.namedItem('month') as HTMLInputElement).value);
-    const year = Number((form.elements.namedItem('year') as HTMLInputElement).value);
-    const saving = (form.elements.namedItem('saving') as HTMLInputElement).value;
-    if (!month || !year) {
+    const m = Number(month);
+    const y = Number(year);
+    if (!m || !y) {
       setLoading(false);
       setError('Bulan dan Tahun wajib diisi');
       return;
     }
     try {
-      const body: any = { month, year };
-      if (saving) body.saving = Number(saving);
+      const body: any = { month: m, year: y };
+      if (savingId) body.saving = Number(savingId);
       const res = await apiRequest<{ message?: string; processed?: number; skipped?: number; details?: Array<any> }>(
         'POST',
         `/api/internal/interest/run`,
@@ -56,27 +77,55 @@ export default function GenerateBungaPage() {
         <div>
           <h1 className="text-xl font-semibold">Generate Bunga</h1>
           <p className="text-sm text-muted-foreground">Admin: jalankan perhitungan bunga untuk bulan/tahun tertentu.</p>
+          <p className="text-xs text-muted-foreground mt-1">Catatan: Perhitungan memakai saldo akhir bulan dua bulan sebelumnya (M−2). Transaksi bunga akan diposting pada periode yang dipilih.</p>
         </div>
         <Card>
           <CardContent className="pt-6">
-            {!isInterestTriggerEnabled() ? (
-              <div className="text-sm text-muted-foreground">
-                Fitur trigger generate bunga dimatikan. Aktifkan dengan mengatur env <code>NEXT_PUBLIC_ENABLE_INTEREST_TRIGGER=1</code> jika endpoint backend tersedia.
-              </div>
-            ) : (
-            <form className="grid gap-4 max-w-lg" onSubmit={onSubmit}>
+            <form className="grid gap-4 max-w-2xl" onSubmit={onSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="grid gap-1">
                   <label className="text-sm">Bulan</label>
-                  <input name="month" type="number" min={1} max={12} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+                  <select
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={month}
+                    onChange={(e) => setMonth(Number(e.target.value))}
+                  >
+                    {[
+                      'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'
+                    ].map((n, idx) => (
+                      <option key={idx+1} value={idx+1}>{n}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="grid gap-1">
                   <label className="text-sm">Tahun</label>
-                  <input name="year" type="number" min={2000} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+                  <input
+                    type="number"
+                    min={2000}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                  />
                 </div>
                 <div className="grid gap-1">
                   <label className="text-sm">Saving (opsional)</label>
-                  <input name="saving" type="number" min={1} placeholder="ID Tabungan" className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="ID Tabungan"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={savingId}
+                    onChange={(e) => setSavingId(e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">Kosongkan untuk semua tabungan aktif.</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button type="button" variant="outline" onClick={() => { const d=new Date(); setMonth(d.getMonth()+1); setYear(d.getFullYear()); }}>Bulan ini</Button>
+                <Button type="button" variant="outline" onClick={() => { const d=new Date(); d.setMonth(d.getMonth()-1); setMonth(d.getMonth()+1); setYear(d.getFullYear()); }}>Bulan lalu</Button>
+                <div className="text-xs text-muted-foreground ml-auto">
+                  Tanggal acuan (EOM M−2): <span className="font-medium">{fmt(acuanDate)}</span> • Tanggal posting (EOM M): <span className="font-medium">{fmt(postingDate)}</span>
                 </div>
               </div>
               <Button type="submit" disabled={loading || disabled}>
@@ -117,7 +166,6 @@ export default function GenerateBungaPage() {
                 </div>
               )}
             </form>
-            )}
           </CardContent>
         </Card>
       </div>

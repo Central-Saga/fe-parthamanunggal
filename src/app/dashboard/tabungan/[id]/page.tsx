@@ -8,7 +8,6 @@ import type { BungaTabungan } from '@/types/bunga_tabungan';
 import type { TransaksiTabungan } from '@/types/transaksi_tabungan';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { isInterestTriggerEnabled } from '@/lib/config';
 import { Input } from '@/components/ui/input';
 
 type ApiList<T> = { data: T } | T;
@@ -134,19 +133,15 @@ export default function TabunganDetailPage() {
       }
     }
     load();
-    // probe trigger availability only if feature enabled
-    if (isInterestTriggerEnabled()) {
-      (async () => {
-        try {
-          await apiRequest('POST', '/api/internal/interest/run?month=1&year=2000', {});
-          setTriggerAvailable(true);
-        } catch {
-          setTriggerAvailable(false);
-        }
-      })();
-    } else {
-      setTriggerAvailable(false);
-    }
+    // probe trigger availability
+    (async () => {
+      try {
+        await apiRequest('POST', '/api/internal/interest/run', { month: 1, year: 2000, saving: id });
+        setTriggerAvailable(true);
+      } catch {
+        setTriggerAvailable(false);
+      }
+    })();
     return () => { mounted = false };
   }, [id]);
 
@@ -415,7 +410,6 @@ export default function TabunganDetailPage() {
               </table>
             </div>
 
-            {isInterestTriggerEnabled() && (
             <div className="pt-2">
               <form className="flex items-end gap-3 flex-wrap" onSubmit={onGenerateSubmit}>
                 <div className="grid gap-1">
@@ -433,7 +427,6 @@ export default function TabunganDetailPage() {
               {genError && <div className="text-sm text-red-600 mt-2">{genError}</div>}
               {genOk && <div className="text-sm text-emerald-700 mt-2">{genOk}</div>}
             </div>
-            )}
           </CardContent>
         </Card>
       )}

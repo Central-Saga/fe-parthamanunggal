@@ -9,8 +9,19 @@ import type { TransaksiTabungan } from '@/types/transaksi_tabungan';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isInterestTriggerEnabled } from '@/lib/config';
+import { Input } from '@/components/ui/input';
 
 type ApiList<T> = { data: T } | T;
+
+type SaldoLogEntry = {
+  id: number;
+  tanggal: string; // ISO date
+  aksi: 'tambah_saldo';
+  dari: number;
+  ke: number;
+  nominal: number;
+  keterangan?: string | null;
+};
 
 function formatIDR(n: number | string) {
   const v = typeof n === 'string' ? Number(n) : n;
@@ -40,12 +51,48 @@ export default function TabunganDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'bunga' | 'transaksi'>('bunga');
+  const [anggotaTabungan, setAnggotaTabungan] = useState<Tabungan[] | null>(null);
+  const totalSaldoAnggota = useMemo(() => {
+    if (!anggotaTabungan) return null;
+    try {
+      return anggotaTabungan.reduce((sum, t) => sum + Number(t.saldo || 0), 0);
+    } catch {
+      return null;
+    }
+  }, [anggotaTabungan]);
   const [filterYear, setFilterYear] = useState<number | ''>('' as any);
   const [filterMonth, setFilterMonth] = useState<number | ''>('' as any);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genOk, setGenOk] = useState<string | null>(null);
   const [triggerAvailable, setTriggerAvailable] = useState<boolean | null>(null);
+  const [showAddSaldo, setShowAddSaldo] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addOk, setAddOk] = useState<string | null>(null);
+  const [addNominal, setAddNominal] = useState<string>('');
+  const [addTanggal, setAddTanggal] = useState<string>(() => new Date().toISOString().slice(0,10));
+  const [addKet, setAddKet] = useState<string>('');
+  const [saldoLogs, setSaldoLogs] = useState<SaldoLogEntry[]>([]);
+
+  // Load/save saldo logs from localStorage to persist across refreshes (per tabungan id)
+  useEffect(() => {
+    try {
+      const key = `saldo_logs_${id}`;
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+      const arr = raw ? JSON.parse(raw) : [];
+      setSaldoLogs(Array.isArray(arr) ? arr : []);
+    } catch {
+      setSaldoLogs([]);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    try {
+      const key = `saldo_logs_${id}`;
+      if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(saldoLogs));
+    } catch {}
+  }, [saldoLogs, id]);
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +112,21 @@ export default function TabunganDetailPage() {
         setTabungan(t);
         setBunga(bungaList ?? []);
         setTrx(trxList ?? []);
+
+        // Load all tabungan for same anggota to compute aggregate saldo
+        try {
+          let listRes: any;
+          try {
+            listRes = await apiRequest<Tabungan[] | { data: Tabungan[] }>('GET', `/api/tabungans?anggota_id=${t.anggota_id}`);
+          } catch {
+            listRes = await apiRequest<Tabungan[] | { data: Tabungan[] }>('GET', `/api/tabungans`);
+          }
+          const list: Tabungan[] = Array.isArray(listRes) ? listRes : ((listRes as any)?.data ?? []);
+          const own = list.filter((it) => Number(it.anggota_id) === Number(t.anggota_id));
+          if (mounted) setAnggotaTabungan(own);
+        } catch {
+          if (mounted) setAnggotaTabungan(null);
+        }
       } catch (e: any) {
         if (mounted) setError(e?.message ?? 'Gagal memuat');
       } finally {
@@ -150,6 +212,101 @@ export default function TabunganDetailPage() {
     }
   }
 
+  async function onAddSaldoSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setAddError(null);
+    setAddOk(null);
+    const nominal = Number(addNominal);
+    if (!Number.isFinite(nominal) || nominal <= 0) {
+      setAddError('Nominal harus > 0');
+      return;
+    }
+    const beforeSaldo = Number(tabungan?.saldo || 0);
+    setAddLoading(true);
+    try {
+      // Prefer creating transaksi setor
+      try {
+        await apiRequest('POST', '/api/transaksi-tabungans', {
+          tabungan_id: id,
+          tipe: 'setor',
+          nominal,
+          tanggal: addTanggal,
+          keterangan: addKet || null,
+          status: 'Sukses',
+        });
+      } catch (err: any) {
+        // If transaksi endpoint unavailable, fallback to updating saldo langsung
+        if (tabungan) {
+          const newSaldo = Number(tabungan.saldo || 0) + nominal;
+          await apiRequest('PUT', `/api/tabungans/${id}`, {
+            ...tabungan,
+            saldo: newSaldo,
+          } as any);
+        } else {
+          throw err;
+        }
+      }
+      // Optimistic UI update for immediate feedback
+      setTabungan((prev) => (prev ? { ...prev, saldo: Number(prev.saldo || 0) + nominal } : prev));
+      setAnggotaTabungan((prev) => {
+        if (!prev) return prev;
+        return prev.map((t) => (Number(t.id) === Number(id) ? { ...t, saldo: Number(t.saldo || 0) + nominal } as Tabungan : t));
+      });
+      setTrx((prev) => [
+        {
+          id: Math.floor(Date.now() % 2147483647),
+          tabungan_id: id,
+          tipe: 'setor',
+          nominal: String(nominal),
+          tanggal: addTanggal,
+          keterangan: addKet || 'Tambah saldo',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as TransaksiTabungan,
+        ...prev,
+      ]);
+      // Append saldo change log
+      setSaldoLogs((prev) => [
+        {
+          id: Date.now(),
+          tanggal: new Date().toISOString(),
+          aksi: 'tambah_saldo',
+          dari: beforeSaldo,
+          ke: beforeSaldo + nominal,
+          nominal,
+          keterangan: addKet || null,
+        },
+        ...prev,
+      ]);
+      // Reload data from server to ensure consistency
+      setAddOk('Saldo berhasil ditambahkan');
+      setAddNominal('');
+      setAddKet('');
+      // Re-fetch minimal: current tabungan and transaksi
+      try {
+        const tRes = await apiRequest<Tabungan | { data: Tabungan }>('GET', `/api/tabungans/${id}`);
+        const t: Tabungan = (tRes as any)?.data ? (tRes as any).data : (tRes as any);
+        setTabungan(t);
+        // refresh anggota aggregation
+        if (t?.anggota_id) {
+          try {
+            const listRes = await apiRequest<Tabungan[] | { data: Tabungan[] }>('GET', `/api/tabungans?anggota_id=${t.anggota_id}`);
+            const list: Tabungan[] = Array.isArray(listRes) ? listRes : ((listRes as any)?.data ?? []);
+            const own = list.filter((it) => Number(it.anggota_id) === Number(t.anggota_id));
+            setAnggotaTabungan(own);
+          } catch {}
+        }
+        const xRes = await apiRequest<ApiList<TransaksiTabungan[]>>('GET', `/api/transaksi-tabungans/tabungan/${id}`);
+        const trxList = Array.isArray(xRes) ? xRes : ((xRes as any)?.data ?? (xRes as any));
+        setTrx(trxList ?? []);
+      } catch {}
+    } catch (e: any) {
+      setAddError(e?.response?.data?.message || e?.message || 'Gagal menambah saldo');
+    } finally {
+      setAddLoading(false);
+    }
+  }
+
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-xl font-semibold">Detail Tabungan</h1>
@@ -161,7 +318,10 @@ export default function TabunganDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground">Saldo</div>
-                <div className="text-lg font-semibold">{formatIDR(tabungan.saldo)}</div>
+                <div className="text-lg font-semibold">{formatIDR(totalSaldoAnggota ?? tabungan.saldo)}</div>
+                {totalSaldoAnggota != null && (
+                  <div className="text-xs text-muted-foreground">Total saldo semua tabungan anggota ini</div>
+                )}
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Jenis</div>
@@ -172,6 +332,33 @@ export default function TabunganDetailPage() {
                 <div className="text-lg">{Number(tabungan.status) === 1 ? 'Aktif' : 'Non Aktif'}</div>
               </div>
             </div>
+            <div className="mt-4">
+              <Button variant={showAddSaldo ? 'outline' : 'default'} onClick={() => setShowAddSaldo((v) => !v)}>
+                {showAddSaldo ? 'Tutup Form Tambah Saldo' : 'Tambah Saldo'}
+              </Button>
+            </div>
+            {showAddSaldo && (
+              <form className="mt-4 grid gap-3 max-w-xl" onSubmit={onAddSaldoSubmit}>
+                <div className="grid gap-1">
+                  <label className="text-sm">Nominal</label>
+                  <Input type="number" step="0.01" min="0" value={addNominal} onChange={(e) => setAddNominal(e.target.value)} placeholder="100000" />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-sm">Tanggal</label>
+                  <Input type="date" value={addTanggal} onChange={(e) => setAddTanggal(e.target.value)} />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-sm">Keterangan (opsional)</label>
+                  <Input value={addKet} onChange={(e) => setAddKet(e.target.value)} placeholder="Setoran manual" />
+                </div>
+                {addError && <div className="text-sm text-red-600">{addError}</div>}
+                {addOk && <div className="text-sm text-emerald-700">{addOk}</div>}
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={addLoading}>{addLoading ? 'Menyimpan...' : 'Simpan'}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setShowAddSaldo(false); setAddError(null); setAddOk(null); }}>Batal</Button>
+                </div>
+              </form>
+            )}
           </CardContent>
         </Card>
       )}
@@ -274,6 +461,44 @@ export default function TabunganDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardContent className="pt-6">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold">Riwayat Perubahan Saldo</h2>
+            <p className="text-sm text-muted-foreground">Catatan perubahan saldo lokal (tambah saldo pada halaman ini).</p>
+          </div>
+          <div className="overflow-x-auto rounded-md border">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-3 py-2 text-left">Tanggal</th>
+                  <th className="px-3 py-2 text-left">Aksi</th>
+                  <th className="px-3 py-2 text-left">Dari</th>
+                  <th className="px-3 py-2 text-left">Ke</th>
+                  <th className="px-3 py-2 text-left">Nominal</th>
+                  <th className="px-3 py-2 text-left">Keterangan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {saldoLogs.map((l) => (
+                  <tr key={l.id}>
+                    <td className="px-3 py-2">{formatDDMMYYYY(l.tanggal)}</td>
+                    <td className="px-3 py-2">Tambah Saldo</td>
+                    <td className="px-3 py-2">{formatIDR(l.dari)}</td>
+                    <td className="px-3 py-2">{formatIDR(l.ke)}</td>
+                    <td className="px-3 py-2">{formatIDR(l.nominal)}</td>
+                    <td className="px-3 py-2">{l.keterangan || '-'}</td>
+                  </tr>
+                ))}
+                {saldoLogs.length === 0 && (
+                  <tr><td className="px-3 py-4 text-muted-foreground" colSpan={6}>Belum ada perubahan saldo</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

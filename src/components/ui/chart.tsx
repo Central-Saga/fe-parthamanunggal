@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Tooltip as RechartsTooltip } from 'recharts';
 
 export type ChartConfig = Record<
   string,
@@ -47,11 +48,13 @@ export function ChartTooltipContent({
   payload,
   label,
   valueFormatter,
+  indicator,
 }: {
   active?: boolean;
   payload?: ChartTooltipPayload[] | any;
   label?: string | number;
   valueFormatter?: (n: number) => string;
+  indicator?: 'line' | 'dot' | 'none';
 }) {
   if (!active || !payload || !payload.length) return null;
   const p = payload[0];
@@ -62,12 +65,19 @@ export function ChartTooltipContent({
     <div className="rounded-lg border bg-popover text-popover-foreground shadow-sm px-3 py-2 text-xs">
       {label ? <div className="mb-1 font-medium">{label}</div> : null}
       <div className="flex items-center gap-2">
-        <span className="inline-block size-2 rounded-sm" style={{ backgroundColor: color }} />
+        {indicator !== 'none' && (
+          <span className="inline-block size-2 rounded-sm" style={{ backgroundColor: color }} />
+        )}
         <span className="text-muted-foreground">{p?.name || "Total"}</span>
         <span className="ml-auto font-medium">{formatted}</span>
       </div>
     </div>
   );
+}
+
+// Thin wrapper so consumers can write <ChartTooltip ... /> like in shadcn examples
+export function ChartTooltip(props: any) {
+  return <RechartsTooltip {...props} />;
 }
 
 // Small util mirroring shadcn/tailwind utils location

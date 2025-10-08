@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Wallet, BookMarked } from "lucide-react";
 import { getJenisIdRuntime, getJenisIdFromEnv, resolveJenisId } from "@/lib/jenisSimpanan";
-import { ChartContainer, type ChartConfig, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
+import { ChartContainer, type ChartConfig, ChartTooltipContent, ChartTooltip } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList, CartesianGrid } from "recharts";
 
 // Keep it simple: start with anggota count only
 type Summary = {
@@ -21,8 +21,9 @@ export default function DashboardHome() {
   const [anggotaCount, setAnggotaCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [simpananByJenis, setSimpananByJenis] = useState<Array<{ key: string; label: string; total: number }>>([]);
+  const [simpananByJenis, setSimpananByJenis] = useState<Array<{ key: string; label: string; total: number; anggotaCount: number }>>([]);
   const [loadingSimpanan, setLoadingSimpanan] = useState(false);
+  const [metric, setMetric] = useState<'nominal' | 'anggota'>('nominal');
 
   useEffect(() => {
     let mounted = true;
@@ -141,12 +142,13 @@ export default function DashboardHome() {
             // Use fixed label matching sidebar so UI stays consistent
             // regardless of backend seed names (which may be lorem ipsum).
             const label = labelForKey[key];
-            // Sum all nominal for this jenis (paginate if needed)
+            // Sum all nominal and count unique anggota for this jenis
             const total = await sumSimpananForJenis(id);
-            return { key, label, total } as { key: string; label: string; total: number };
+            const anggotaCount = await countAnggotaForJenis(id);
+            return { key, label, total, anggotaCount } as { key: string; label: string; total: number; anggotaCount: number };
           })
         );
-        const filtered = entries.filter(Boolean) as Array<{ key: string; label: string; total: number }>;
+        const filtered = entries.filter(Boolean) as Array<{ key: string; label: string; total: number; anggotaCount: number }>;
         if (mounted) setSimpananByJenis(filtered);
       } finally {
         if (mounted) setLoadingSimpanan(false);
@@ -156,7 +158,7 @@ export default function DashboardHome() {
     return () => { mounted = false };
   }, []);
 
-  const maxSimpanan = useMemo(() => simpananByJenis.reduce((m, x) => Math.max(m, x.total), 0), [simpananByJenis]);
+  const valueFormatter = (n: number) => metric === 'nominal' ? formatCurrency(n) : new Intl.NumberFormat('id-ID').format(n);
 
   return (
     <div className="p-6 space-y-6">
@@ -187,26 +189,35 @@ export default function DashboardHome() {
             <div className="text-sm text-muted-foreground">Belum ada data.</div>
           )}
           {!loadingSimpanan && simpananByJenis.length > 0 && (
-            <div className="h-[360px]">
-              <ChartContainer
-                config={{ total: { label: "Total", color: "#10B981" } } satisfies ChartConfig}
-                className="h-full w-full"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={simpananByJenis.map((d) => ({ ...d, total: Number(d.total || 0) }))}
-                    layout="vertical"
-                    margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
-                  >
-                    <XAxis type="number" hide tickFormatter={(v) => formatCurrency(v as number)} />
-                    <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 12 }} />
-                    <Tooltip cursor={{ fill: 'hsl(0 0% 96%)' }} content={<ChartTooltipContent valueFormatter={(v) => formatCurrency(v)} />} />
-                    <Bar dataKey="total" radius={4} fill="var(--color-total)">
-                      <LabelList dataKey="total" position="right" formatter={(v: number) => formatCurrency(v)} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Button size="sm" variant={metric === 'nominal' ? 'default' : 'outline'} onClick={() => setMetric('nominal')}>Nominal</Button>
+                <Button size="sm" variant={metric === 'anggota' ? 'default' : 'outline'} onClick={() => setMetric('anggota')}>Anggota</Button>
+              </div>
+              <div className="h-[360px]">
+                <ChartContainer
+                  config={{ bar: { label: metric === 'nominal' ? 'Nominal' : 'Anggota', color: '#10B981' }, label: { label: 'Label', color: 'var(--background)' } } satisfies ChartConfig}
+                  className="h-full w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      accessibilityLayer
+                      data={simpananByJenis.map((d) => ({ label: d.label, value: metric === 'nominal' ? Number(d.total || 0) : Number(d.anggotaCount || 0) }))}
+                      layout="vertical"
+                      margin={{ right: 16 }}
+                    >
+                      <CartesianGrid horizontal={false} />
+                      <YAxis dataKey="label" type="category" hide tickLine={false} tickMargin={10} axisLine={false} />
+                      <XAxis dataKey="value" type="number" hide />
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" valueFormatter={(v) => valueFormatter(v)} />} />
+                      <Bar dataKey="value" layout="vertical" fill="var(--color-bar)" radius={4}>
+                        <LabelList dataKey="label" position="insideLeft" offset={8} className="fill-[var(--color-label)]" fontSize={12} />
+                        <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} formatter={(v: number) => valueFormatter(v)} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             </div>
           )}
         </CardContent>
@@ -284,3 +295,42 @@ async function sumSimpananForJenis(jenisId: number): Promise<number> {
   return total;
 }
 
+async function countAnggotaForJenis(jenisId: number): Promise<number> {
+  let page = 1;
+  const perPage = 100;
+  const seen = new Set<number>();
+  const pickArray = (r: any): any[] | null => {
+    if (Array.isArray(r)) return r;
+    if (Array.isArray(r?.data?.data)) return r.data.data;
+    if (Array.isArray(r?.data)) return r.data;
+    return null;
+  };
+  const pickLast = (r: any): number | null => (
+    Number(r?.data?.last_page) || Number(r?.meta?.last_page) || Number(r?.last_page) || Number(r?.pagination?.last_page) || null
+  );
+  let lastPage = 1;
+  try {
+    const first: any = await apiRequest('GET', `/api/simpanans?jenis_simpanan_id=${jenisId}&page=1&per_page=${perPage}`);
+    const items1 = pickArray(first) ?? [];
+    lastPage = pickLast(first) || 1;
+    for (const it of items1) {
+      const id = Number(it?.anggota_id);
+      if (Number.isFinite(id)) seen.add(id);
+    }
+  } catch {}
+  if (lastPage > 1) {
+    for (page = 2; page <= lastPage; page++) {
+      try {
+        const r: any = await apiRequest('GET', `/api/simpanans?jenis_simpanan_id=${jenisId}&page=${page}&per_page=${perPage}`);
+        const items = pickArray(r) ?? [];
+        for (const it of items) {
+          const id = Number(it?.anggota_id);
+          if (Number.isFinite(id)) seen.add(id);
+        }
+      } catch {
+        break;
+      }
+    }
+  }
+  return seen.size;
+}

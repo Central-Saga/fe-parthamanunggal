@@ -15,7 +15,7 @@ type ApiList<T> = { data: T } | T;
 type SaldoLogEntry = {
   id: number;
   tanggal: string; // ISO date
-  aksi: 'tambah_saldo';
+  aksi: 'tambah_saldo' | 'kurangi_saldo';
   dari: number;
   ke: number;
   nominal: number;
@@ -28,6 +28,11 @@ function formatIDR(n: number | string) {
 }
 
 function formatDDMMYYYY(s: string): string {
+  // Handle plain date-only string to avoid timezone shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-');
+    return `${d}/${m}/${y}`;
+  }
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
   const dd = String(d.getDate()).padStart(2, '0');
@@ -64,14 +69,27 @@ export default function TabunganDetailPage() {
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genOk, setGenOk] = useState<string | null>(null);
-  const [triggerAvailable, setTriggerAvailable] = useState<boolean | null>(null);
+  // Anggap endpoint tersedia; jika submit gagal 404, kita akan tandai false
+  const [triggerAvailable, setTriggerAvailable] = useState<boolean | null>(true);
   const [showAddSaldo, setShowAddSaldo] = useState(false);
+  const [showSubSaldo, setShowSubSaldo] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [addOk, setAddOk] = useState<string | null>(null);
   const [addNominal, setAddNominal] = useState<string>('');
   const [addTanggal, setAddTanggal] = useState<string>(() => new Date().toISOString().slice(0,10));
   const [addKet, setAddKet] = useState<string>('');
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
+  const [subNominal, setSubNominal] = useState<string>('');
+  const [subTanggal, setSubTanggal] = useState<string>(() => new Date().toISOString().slice(0,10));
+  const [subKet, setSubKet] = useState<string>('');
+  // Derived guards
+  const currentSaldo = useMemo(() => Number(tabungan?.saldo || 0), [tabungan]);
+  const addNominalNum = useMemo(() => Number(addNominal || 0), [addNominal]);
+  const isAddInvalid = !Number.isFinite(addNominalNum) || addNominalNum <= 0;
+  const subNominalNum = useMemo(() => Number(subNominal || 0), [subNominal]);
+  const isSubInvalid = !Number.isFinite(subNominalNum) || subNominalNum <= 0;
+  const isSubExceeds = subNominalNum > currentSaldo;
   const [saldoLogs, setSaldoLogs] = useState<SaldoLogEntry[]>([]);
 
   // Load/save saldo logs from localStorage to persist across refreshes (per tabungan id)
@@ -133,15 +151,6 @@ export default function TabunganDetailPage() {
       }
     }
     load();
-    // probe trigger availability
-    (async () => {
-      try {
-        await apiRequest('POST', '/api/internal/interest/run', { month: 1, year: 2000, saving: id });
-        setTriggerAvailable(true);
-      } catch {
-        setTriggerAvailable(false);
-      }
-    })();
     return () => { mounted = false };
   }, [id]);
 
@@ -172,6 +181,98 @@ export default function TabunganDetailPage() {
     );
   }
 
+  async function onSubSaldoSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubError(null);
+    const nominal = Number(subNominal);
+    if (!Number.isFinite(nominal) || nominal <= 0) {
+      setSubError('Nominal harus > 0');
+      return;
+    }
+    const beforeSaldo = Number(tabungan?.saldo || 0);
+    if (nominal > beforeSaldo) {
+      setSubError('Nominal melebihi saldo saat ini');
+      return;
+    }
+    setSubLoading(true);
+    try {
+      // Buat transaksi tarik; jika gagal, lanjutkan update saldo langsung
+      try {
+        await apiRequest('POST', '/api/transaksi-tabungans', {
+          tabungan_id: id,
+          tipe: 'tarik',
+          nominal,
+          tanggal: subTanggal,
+          keterangan: subKet || null,
+          status: 'Aktif',
+        });
+      } catch {}
+      // Update saldo tabungan agar konsisten dengan perubahan
+      try {
+        const newSaldo = beforeSaldo - nominal;
+        await apiRequest('PUT', `/api/tabungans/${id}`, {
+          ...tabungan,
+          saldo: newSaldo,
+        } as any);
+      } catch {}
+      // Optimistic UI update
+      setTabungan((prev) => (prev ? { ...prev, saldo: Number(prev.saldo || 0) - nominal } : prev));
+      setAnggotaTabungan((prev) => {
+        if (!prev) return prev;
+        return prev.map((t) => (Number(t.id) === Number(id) ? { ...t, saldo: Number(t.saldo || 0) - nominal } as Tabungan : t));
+      });
+      setTrx((prev) => [
+        {
+          id: Math.floor(Date.now() % 2147483647),
+          tabungan_id: id,
+          tipe: 'tarik',
+          nominal: String(nominal),
+          tanggal: subTanggal,
+          keterangan: subKet || 'Kurangi saldo',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as TransaksiTabungan,
+        ...prev,
+      ]);
+      // Append saldo change log
+      setSaldoLogs((prev) => [
+        {
+          id: Date.now(),
+          tanggal: subTanggal,
+          aksi: 'kurangi_saldo',
+          dari: beforeSaldo,
+          ke: beforeSaldo - nominal,
+          nominal,
+          keterangan: subKet || null,
+        },
+        ...prev,
+      ]);
+      
+      setSubNominal('');
+      setSubKet('');
+      // Re-fetch minimal: current tabungan and transaksi
+      try {
+        const tRes = await apiRequest<Tabungan | { data: Tabungan }>('GET', `/api/tabungans/${id}`);
+        const t: Tabungan = (tRes as any)?.data ? (tRes as any).data : (tRes as any);
+        setTabungan(t);
+        if (t?.anggota_id) {
+          try {
+            const listRes = await apiRequest<Tabungan[] | { data: Tabungan[] }>('GET', `/api/tabungans?anggota_id=${t.anggota_id}`);
+            const list: Tabungan[] = Array.isArray(listRes) ? listRes : ((listRes as any)?.data ?? []);
+            const own = list.filter((it) => Number(it.anggota_id) === Number(t.anggota_id));
+            setAnggotaTabungan(own);
+          } catch {}
+        }
+        const xRes = await apiRequest<ApiList<TransaksiTabungan[]>>('GET', `/api/transaksi-tabungans/tabungan/${id}`);
+        const trxList = Array.isArray(xRes) ? xRes : ((xRes as any)?.data ?? (xRes as any));
+        setTrx(trxList ?? []);
+      } catch {}
+    } catch (e: any) {
+      setSubError(e?.response?.data?.message || e?.message || 'Gagal mengurangi saldo');
+    } finally {
+      setSubLoading(false);
+    }
+  }
   function isBungaTrx(t: TransaksiTabungan): boolean {
     // Prefer explicit link from backend when available
     if (t.saving_interest_id && Number(t.saving_interest_id) > 0) return true;
@@ -218,7 +319,6 @@ export default function TabunganDetailPage() {
   async function onAddSaldoSubmit(e: React.FormEvent) {
     e.preventDefault();
     setAddError(null);
-    setAddOk(null);
     const nominal = Number(addNominal);
     if (!Number.isFinite(nominal) || nominal <= 0) {
       setAddError('Nominal harus > 0');
@@ -227,7 +327,7 @@ export default function TabunganDetailPage() {
     const beforeSaldo = Number(tabungan?.saldo || 0);
     setAddLoading(true);
     try {
-      // Prefer creating transaksi setor
+      // Buat transaksi setor; jika gagal, tetap lanjut update saldo
       try {
         await apiRequest('POST', '/api/transaksi-tabungans', {
           tabungan_id: id,
@@ -235,20 +335,17 @@ export default function TabunganDetailPage() {
           nominal,
           tanggal: addTanggal,
           keterangan: addKet || null,
-          status: 'Sukses',
+          status: 'Aktif',
         });
-      } catch (err: any) {
-        // If transaksi endpoint unavailable, fallback to updating saldo langsung
-        if (tabungan) {
-          const newSaldo = Number(tabungan.saldo || 0) + nominal;
-          await apiRequest('PUT', `/api/tabungans/${id}`, {
-            ...tabungan,
-            saldo: newSaldo,
-          } as any);
-        } else {
-          throw err;
-        }
-      }
+      } catch {}
+      // Update saldo tabungan agar konsisten dengan perubahan
+      try {
+        const newSaldo = beforeSaldo + nominal;
+        await apiRequest('PUT', `/api/tabungans/${id}`, {
+          ...tabungan,
+          saldo: newSaldo,
+        } as any);
+      } catch {}
       // Optimistic UI update for immediate feedback
       setTabungan((prev) => (prev ? { ...prev, saldo: Number(prev.saldo || 0) + nominal } : prev));
       setAnggotaTabungan((prev) => {
@@ -272,7 +369,8 @@ export default function TabunganDetailPage() {
       setSaldoLogs((prev) => [
         {
           id: Date.now(),
-          tanggal: new Date().toISOString(),
+          // Simpan sesuai tanggal yang dipilih di form
+          tanggal: addTanggal,
           aksi: 'tambah_saldo',
           dari: beforeSaldo,
           ke: beforeSaldo + nominal,
@@ -282,7 +380,7 @@ export default function TabunganDetailPage() {
         ...prev,
       ]);
       // Reload data from server to ensure consistency
-      setAddOk('Saldo berhasil ditambahkan');
+      
       setAddNominal('');
       setAddKet('');
       // Re-fetch minimal: current tabungan and transaksi
@@ -336,15 +434,29 @@ export default function TabunganDetailPage() {
               </div>
             </div>
             <div className="mt-4">
-              <Button variant={showAddSaldo ? 'outline' : 'default'} onClick={() => setShowAddSaldo((v) => !v)}>
-                {showAddSaldo ? 'Tutup Form Tambah Saldo' : 'Tambah Saldo'}
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={showAddSaldo ? 'outline' : 'default'}
+                  onClick={() => { setShowAddSaldo((v) => !v); if (!showAddSaldo) setShowSubSaldo(false); }}
+                >
+                  {showAddSaldo ? 'Tutup Form Tambah Saldo' : 'Tambah Saldo'}
+                </Button>
+                <Button
+                  variant={showSubSaldo ? 'outline' : 'secondary'}
+                  onClick={() => { setShowSubSaldo((v) => !v); if (!showSubSaldo) setShowAddSaldo(false); }}
+                >
+                  {showSubSaldo ? 'Tutup Form Kurangi Saldo' : 'Kurangi Saldo'}
+                </Button>
+              </div>
             </div>
             {showAddSaldo && (
               <form className="mt-4 grid gap-3 max-w-xl" onSubmit={onAddSaldoSubmit}>
                 <div className="grid gap-1">
                   <label className="text-sm">Nominal</label>
                   <Input type="number" step="0.01" min="0" value={addNominal} onChange={(e) => setAddNominal(e.target.value)} placeholder="100000" />
+                  {addNominal && isAddInvalid && (
+                    <div className="text-xs text-red-600">Nominal harus lebih dari 0</div>
+                  )}
                 </div>
                 <div className="grid gap-1">
                   <label className="text-sm">Tanggal</label>
@@ -355,10 +467,37 @@ export default function TabunganDetailPage() {
                   <Input value={addKet} onChange={(e) => setAddKet(e.target.value)} placeholder="Setoran manual" />
                 </div>
                 {addError && <div className="text-sm text-red-600">{addError}</div>}
-                {addOk && <div className="text-sm text-emerald-700">{addOk}</div>}
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={addLoading}>{addLoading ? 'Menyimpan...' : 'Simpan'}</Button>
-                  <Button type="button" variant="outline" onClick={() => { setShowAddSaldo(false); setAddError(null); setAddOk(null); }}>Batal</Button>
+                  <Button type="submit" disabled={addLoading || isAddInvalid}>{addLoading ? 'Menyimpan...' : 'Simpan'}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setShowAddSaldo(false); setAddError(null); }}>Batal</Button>
+                </div>
+              </form>
+            )}
+            {showSubSaldo && (
+              <form className="mt-4 grid gap-3 max-w-xl" onSubmit={onSubSaldoSubmit}>
+                <div className="grid gap-1">
+                  <label className="text-sm">Nominal</label>
+                  <Input type="number" step="0.01" min="0" value={subNominal} onChange={(e) => setSubNominal(e.target.value)} placeholder="100000" />
+                  <div className="text-xs text-muted-foreground">Saldo saat ini: {formatIDR(currentSaldo)}</div>
+                  {subNominal && isSubInvalid && (
+                    <div className="text-xs text-red-600">Nominal harus lebih dari 0</div>
+                  )}
+                  {!isSubInvalid && isSubExceeds && (
+                    <div className="text-xs text-red-600">Nominal melebihi saldo saat ini</div>
+                  )}
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-sm">Tanggal</label>
+                  <Input type="date" value={subTanggal} onChange={(e) => setSubTanggal(e.target.value)} />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-sm">Keterangan (opsional)</label>
+                  <Input value={subKet} onChange={(e) => setSubKet(e.target.value)} placeholder="Penarikan manual" />
+                </div>
+                {subError && <div className="text-sm text-red-600">{subError}</div>}
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={subLoading || isSubInvalid || isSubExceeds}>{subLoading ? 'Menyimpan...' : 'Simpan'}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setShowSubSaldo(false); setSubError(null); }}>Batal</Button>
                 </div>
               </form>
             )}
@@ -466,8 +605,24 @@ export default function TabunganDetailPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="mb-3">
-            <h2 className="text-lg font-semibold">Riwayat Perubahan Saldo</h2>
-            <p className="text-sm text-muted-foreground">Catatan perubahan saldo lokal (tambah saldo pada halaman ini).</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Riwayat Saldo</h2>
+                <p className="text-sm text-muted-foreground">Setiap penambahan mengikuti tanggal yang dipilih pada form Tambah Saldo.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  try {
+                    const key = `saldo_logs_${id}`;
+                    if (typeof window !== 'undefined') localStorage.removeItem(key);
+                  } catch {}
+                  setSaldoLogs([]);
+                }}
+              >
+                Hapus Riwayat Lokal
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto rounded-md border">
             <table className="min-w-full text-sm">
@@ -485,7 +640,7 @@ export default function TabunganDetailPage() {
                 {saldoLogs.map((l) => (
                   <tr key={l.id}>
                     <td className="px-3 py-2">{formatDDMMYYYY(l.tanggal)}</td>
-                    <td className="px-3 py-2">Tambah Saldo</td>
+                    <td className="px-3 py-2">{l.aksi === 'tambah_saldo' ? 'Tambah Saldo' : 'Kurangi Saldo'}</td>
                     <td className="px-3 py-2">{formatIDR(l.dari)}</td>
                     <td className="px-3 py-2">{formatIDR(l.ke)}</td>
                     <td className="px-3 py-2">{formatIDR(l.nominal)}</td>

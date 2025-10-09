@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { apiRequest } from '@/lib/api';
 import type { Tabungan } from '@/types/tabungan';
 import type { BungaTabungan } from '@/types/bunga_tabungan';
@@ -48,6 +48,7 @@ function lastDayOfMonth(year: number, month: number) {
 
 export default function TabunganDetailPage() {
   const params = useParams<{ id: string }>();
+  const search = useSearchParams();
   const id = Number(params?.id);
   const [tabungan, setTabungan] = useState<Tabungan | null>(null);
   const [bunga, setBunga] = useState<BungaTabungan[]>([]);
@@ -113,6 +114,17 @@ export default function TabunganDetailPage() {
 
   useEffect(() => {
     let mounted = true;
+    // open form based on ?action=tambah|kurang
+    try {
+      const act = search?.get('action');
+      if (act === 'tambah') {
+        setShowAddSaldo(true);
+        setShowSubSaldo(false);
+      } else if (act === 'kurang') {
+        setShowSubSaldo(true);
+        setShowAddSaldo(false);
+      }
+    } catch {}
     async function load() {
       setLoading(true);
       setError(null);
@@ -416,7 +428,11 @@ export default function TabunganDetailPage() {
       {tabungan && (
         <Card>
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Anggota</div>
+                <div className="text-lg font-medium">{tabungan.anggota?.nama ?? String(tabungan.anggota_id)}</div>
+              </div>
               <div>
                 <div className="text-sm text-muted-foreground">Saldo</div>
                 <div className="text-lg font-semibold">{formatIDR(totalSaldoAnggota ?? tabungan.saldo)}</div>

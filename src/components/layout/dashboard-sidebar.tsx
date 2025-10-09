@@ -59,6 +59,7 @@ export default function DashboardSidebar() {
         label: "Tabungan",
         icon: BookMarked,
         children: [
+          { label: "Catat Tabungan", href: "/dashboard/catat-tabungan" },
           { label: "Harian", href: "/dashboard/tabungan/harian" },
           { label: "Berjangka", href: "/dashboard/tabungan/berjangka" },
           { label: "Deposito", href: "/dashboard/tabungan/deposito" },

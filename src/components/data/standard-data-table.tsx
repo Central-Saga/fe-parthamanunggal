@@ -26,6 +26,8 @@ export type StandardDataTableProps<T extends Record<string, any>> = {
   emptyText?: string;
   // Optional extra projector to include custom fields into global search
   globalSearchProjector?: (row: T) => Array<string | number>;
+  // Optional meta to pass custom handlers to column cells
+  meta?: Record<string, any>;
 };
 
 export default function StandardDataTable<T extends Record<string, any>>({
@@ -38,6 +40,7 @@ export default function StandardDataTable<T extends Record<string, any>>({
   searchPlaceholder = "Filter...",
   emptyText = "Tidak ada data",
   globalSearchProjector,
+  meta,
 }: StandardDataTableProps<T>) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,7 +175,10 @@ export default function StandardDataTable<T extends Record<string, any>>({
     initialState: {
       pagination: { pageSize },
     },
-    meta: onDeleteUrl ? { onDelete: handleDelete } : undefined,
+    meta: {
+      ...(meta || {}),
+      ...(onDeleteUrl ? { onDelete: handleDelete } : {}),
+    },
   });
 
   useEffect(() => {

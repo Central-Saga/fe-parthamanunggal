@@ -12,9 +12,9 @@ import { Input } from '@/components/ui/input';
 
 type ApiList<T> = { data: T } | T;
 
-type SaldoLogEntry = {
-  id: number;
-  tanggal: string; // ISO date
+type SaldoHistoryEntry = {
+  id: number | string;
+  tanggal: string;
   aksi: 'tambah_saldo' | 'kurangi_saldo';
   dari: number;
   ke: number;
@@ -91,26 +91,27 @@ export default function TabunganDetailPage() {
   const subNominalNum = useMemo(() => Number(subNominal || 0), [subNominal]);
   const isSubInvalid = !Number.isFinite(subNominalNum) || subNominalNum <= 0;
   const isSubExceeds = subNominalNum > currentSaldo;
-  const [saldoLogs, setSaldoLogs] = useState<SaldoLogEntry[]>([]);
-
-  // Load/save saldo logs from localStorage to persist across refreshes (per tabungan id)
-  useEffect(() => {
-    try {
-      const key = `saldo_logs_${id}`;
-      const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-      const arr = raw ? JSON.parse(raw) : [];
-      setSaldoLogs(Array.isArray(arr) ? arr : []);
-    } catch {
-      setSaldoLogs([]);
+  const saldoHistory: SaldoHistoryEntry[] = useMemo(() => {
+    if (!tabungan) return [];
+    const list = Array.isArray(trx) ? [...trx] : [];
+    list.sort((a, b) => (a.tanggal < b.tanggal ? 1 : a.tanggal > b.tanggal ? -1 : Number(b.id) - Number(a.id)));
+    let running = Number(tabungan.saldo || 0);
+    const out: SaldoHistoryEntry[] = [];
+    for (const t of list) {
+      const tipe = String(t.tipe).toLowerCase();
+      const amount = Number(t.nominal || 0);
+      let before = running;
+      if (tipe === 'setor' || tipe === 'debit') {
+        before = running - amount;
+        out.push({ id: t.id, tanggal: String(t.tanggal), aksi: 'tambah_saldo', dari: before, ke: running, nominal: amount, keterangan: (t as any).keterangan ?? null });
+      } else {
+        before = running + amount;
+        out.push({ id: t.id, tanggal: String(t.tanggal), aksi: 'kurangi_saldo', dari: before, ke: running, nominal: amount, keterangan: (t as any).keterangan ?? null });
+      }
+      running = before;
     }
-  }, [id]);
-
-  useEffect(() => {
-    try {
-      const key = `saldo_logs_${id}`;
-      if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(saldoLogs));
-    } catch {}
-  }, [saldoLogs, id]);
+    return out;
+  }, [trx, tabungan]);
 
   useEffect(() => {
     let mounted = true;
@@ -246,19 +247,7 @@ export default function TabunganDetailPage() {
         } as TransaksiTabungan,
         ...prev,
       ]);
-      // Append saldo change log
-      setSaldoLogs((prev) => [
-        {
-          id: Date.now(),
-          tanggal: subTanggal,
-          aksi: 'kurangi_saldo',
-          dari: beforeSaldo,
-          ke: beforeSaldo - nominal,
-          nominal,
-          keterangan: subKet || null,
-        },
-        ...prev,
-      ]);
+      // Riwayat saldo bersumber dari transaksi backend
       
       setSubNominal('');
       setSubKet('');
@@ -377,20 +366,7 @@ export default function TabunganDetailPage() {
         } as TransaksiTabungan,
         ...prev,
       ]);
-      // Append saldo change log
-      setSaldoLogs((prev) => [
-        {
-          id: Date.now(),
-          // Simpan sesuai tanggal yang dipilih di form
-          tanggal: addTanggal,
-          aksi: 'tambah_saldo',
-          dari: beforeSaldo,
-          ke: beforeSaldo + nominal,
-          nominal,
-          keterangan: addKet || null,
-        },
-        ...prev,
-      ]);
+      // Riwayat saldo bersumber dari transaksi backend
       // Reload data from server to ensure consistency
       
       setAddNominal('');
@@ -621,24 +597,8 @@ export default function TabunganDetailPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="mb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Riwayat Saldo</h2>
-                <p className="text-sm text-muted-foreground">Setiap penambahan mengikuti tanggal yang dipilih pada form Tambah Saldo.</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  try {
-                    const key = `saldo_logs_${id}`;
-                    if (typeof window !== 'undefined') localStorage.removeItem(key);
-                  } catch {}
-                  setSaldoLogs([]);
-                }}
-              >
-                Hapus Riwayat Lokal
-              </Button>
-            </div>
+            <h2 className="text-lg font-semibold">Riwayat Saldo</h2>
+            <p className="text-sm text-muted-foreground">Dihitung dari transaksi backend (setor/tarik) terbaru ke terlama.</p>
           </div>
           <div className="overflow-x-auto rounded-md border">
             <table className="min-w-full text-sm">
@@ -653,7 +613,7 @@ export default function TabunganDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {saldoLogs.map((l) => (
+                {saldoHistory.map((l) => (
                   <tr key={l.id}>
                     <td className="px-3 py-2">{formatDDMMYYYY(l.tanggal)}</td>
                     <td className="px-3 py-2">{l.aksi === 'tambah_saldo' ? 'Tambah Saldo' : 'Kurangi Saldo'}</td>
@@ -663,7 +623,7 @@ export default function TabunganDetailPage() {
                     <td className="px-3 py-2">{l.keterangan || '-'}</td>
                   </tr>
                 ))}
-                {saldoLogs.length === 0 && (
+                {saldoHistory.length === 0 && (
                   <tr><td className="px-3 py-4 text-muted-foreground" colSpan={6}>Belum ada perubahan saldo</td></tr>
                 )}
               </tbody>

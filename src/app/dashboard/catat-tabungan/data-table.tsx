@@ -76,23 +76,7 @@ export default function CatatTabunganDataTable() {
       } catch {}
       // update table by forcing reload
       setUrl((prev) => prev.replace(/([?&])r=\d+/, '$1') + (prev.includes('?') ? '&' : '?') + `r=${Date.now()}`);
-      // append local log for that tabungan id to show later in detail page
-      try {
-        const key = `saldo_logs_${selected.id}`;
-        const raw = localStorage.getItem(key);
-        const arr = raw ? JSON.parse(raw) : [];
-        const entry = {
-          id: Date.now(),
-          tanggal,
-          aksi: modalOpen === 'tambah' ? 'tambah_saldo' : 'kurangi_saldo',
-          dari: beforeSaldo,
-          ke: modalOpen === 'tambah' ? beforeSaldo + nominalNum : beforeSaldo - nominalNum,
-          nominal: nominalNum,
-          keterangan: ket || null,
-        };
-        const next = [entry, ...((Array.isArray(arr) ? arr : []) as any[])];
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch {}
+      // tidak perlu log lokal; halaman detail menghitung dari transaksi backend
       setModalOpen(false);
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Gagal menyimpan');

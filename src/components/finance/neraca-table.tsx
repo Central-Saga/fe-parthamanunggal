@@ -41,11 +41,11 @@ export default function NeracaTable({ data }: Props) {
       <tr key={i} className="border-t odd:bg-white even:bg-muted/40 hover:bg-muted/50 transition-colors">
         <td className="px-3 py-2 whitespace-nowrap">{row.kode_akun}</td>
         <td className="px-3 py-2">{row.nama_akun}</td>
-        <td className="px-3 py-2 text-right tabular-nums text-sky-700">{awal.d.toLocaleString('id-ID')}</td>
+        <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{awal.d.toLocaleString('id-ID')}</td>
         <td className="px-3 py-2 text-right tabular-nums border-r text-rose-700">{awal.k.toLocaleString('id-ID')}</td>
-        <td className="px-3 py-2 text-right tabular-nums text-sky-700">{row.mutasi_debet.toLocaleString('id-ID')}</td>
+        <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{row.mutasi_debet.toLocaleString('id-ID')}</td>
         <td className="px-3 py-2 text-right tabular-nums border-r text-rose-700">{row.mutasi_kredit.toLocaleString('id-ID')}</td>
-        <td className="px-3 py-2 text-right tabular-nums text-sky-700">{akhir.d.toLocaleString('id-ID')}</td>
+        <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{akhir.d.toLocaleString('id-ID')}</td>
         <td className="px-3 py-2 text-right tabular-nums text-rose-700">{akhir.k.toLocaleString('id-ID')}</td>
       </tr>
     );
@@ -64,11 +64,11 @@ export default function NeracaTable({ data }: Props) {
               <th className="px-3 py-2 text-center" colSpan={2}>Neraca Saldo</th>
             </tr>
             <tr className="bg-muted/50 sticky top-[34px] z-10">
-              <th className="px-3 py-2 text-right text-sky-700">Debet</th>
+              <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
               <th className="px-3 py-2 text-right border-r text-rose-700">Kredit</th>
-              <th className="px-3 py-2 text-right text-sky-700">Debet</th>
+              <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
               <th className="px-3 py-2 text-right border-r text-rose-700">Kredit</th>
-              <th className="px-3 py-2 text-right text-sky-700">Debet</th>
+              <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
               <th className="px-3 py-2 text-right text-rose-700">Kredit</th>
             </tr>
           </thead>
@@ -78,11 +78,11 @@ export default function NeracaTable({ data }: Props) {
           <tfoot className="border-t bg-muted/30">
             <tr className="bg-muted/50">
               <td className="px-3 py-2 font-medium" colSpan={2}>Total</td>
-              <td className="px-3 py-2 text-right font-medium tabular-nums text-sky-700">{tAwalD.toLocaleString('id-ID')}</td>
+              <td className="px-3 py-2 text-right font-medium tabular-nums text-emerald-700">{tAwalD.toLocaleString('id-ID')}</td>
               <td className="px-3 py-2 text-right font-medium tabular-nums border-r text-rose-700">{tAwalK.toLocaleString('id-ID')}</td>
-              <td className="px-3 py-2 text-right font-medium tabular-nums text-sky-700">{tMutD.toLocaleString('id-ID')}</td>
+              <td className="px-3 py-2 text-right font-medium tabular-nums text-emerald-700">{tMutD.toLocaleString('id-ID')}</td>
               <td className="px-3 py-2 text-right font-medium tabular-nums border-r text-rose-700">{tMutK.toLocaleString('id-ID')}</td>
-              <td className="px-3 py-2 text-right font-medium tabular-nums text-sky-700">{tAkhD.toLocaleString('id-ID')}</td>
+              <td className="px-3 py-2 text-right font-medium tabular-nums text-emerald-700">{tAkhD.toLocaleString('id-ID')}</td>
               <td className="px-3 py-2 text-right font-medium tabular-nums text-rose-700">{tAkhK.toLocaleString('id-ID')}</td>
             </tr>
             <tr>

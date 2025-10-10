@@ -149,15 +149,15 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <section className="rounded-lg border p-4">
               <div className="text-sm font-medium mb-1">Saldo Awal (s/d H-1)</div>
-              <div className="mb-2 text-xs text-muted-foreground">Saldo awal saat ini:
-                <span className="ml-1">Debet <span className="font-semibold text-sky-700">{currentAwal.d.toLocaleString('id-ID')}</span></span>
+              <div className="mb-2 text-xs text-muted-foreground">Saldo awal saat ini: 
+                <span className="ml-1">Debet <span className="font-semibold text-emerald-700">{currentAwal.d.toLocaleString('id-ID')}</span></span>
                 <span className="ml-3">Kredit <span className="font-semibold text-rose-700">{currentAwal.k.toLocaleString('id-ID')}</span></span>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-[420px] w-full text-sm">
                   <thead>
                     <tr className="bg-muted/40">
-                      <th className="px-3 py-2 text-right text-sky-700">Debet</th>
+                      <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
                       <th className="px-3 py-2 text-right text-rose-700">Kredit</th>
                     </tr>
                   </thead>
@@ -166,7 +166,7 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
                       <td className="px-3 py-2 text-right">
                         <input
                           type="number"
-                          className="w-full rounded-md border px-3 py-2 text-right text-sky-700"
+                          className="w-full rounded-md border px-3 py-2 text-right text-emerald-700"
                           value={saldoAwalD}
                           placeholder="0"
                           min={0}
@@ -199,7 +199,7 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
                 <table className="min-w-[420px] w-full text-sm">
                   <thead>
                     <tr className="bg-muted/40">
-                      <th className="px-3 py-2 text-right text-sky-700">Debet</th>
+                      <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
                       <th className="px-3 py-2 text-right text-rose-700">Kredit</th>
                     </tr>
                   </thead>
@@ -208,7 +208,7 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
                       <td className="px-3 py-2 text-right">
                         <input
                           type="number"
-                          className="w-full rounded-md border px-3 py-2 text-right text-sky-700"
+                          className="w-full rounded-md border px-3 py-2 text-right text-emerald-700"
                           value={mutasiD}
                           placeholder="0"
                           min={0}
@@ -240,7 +240,7 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
           <section className="rounded-md border p-3 bg-muted/30">
             <div className="text-sm font-medium mb-2">Neraca Saldo (otomatis)</div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-sm">Debet: <span className="font-semibold text-sky-700">{neraca.debet.toLocaleString('id-ID')}</span></div>
+              <div className="text-sm">Debet: <span className="font-semibold text-emerald-700">{neraca.debet.toLocaleString('id-ID')}</span></div>
               <div className="text-sm">Kredit: <span className="font-semibold text-rose-700">{neraca.kredit.toLocaleString('id-ID')}</span></div>
             </div>
           </section>

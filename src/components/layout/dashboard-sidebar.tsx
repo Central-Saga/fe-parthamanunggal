@@ -69,6 +69,8 @@ export default function DashboardSidebar() {
       { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: FileText },
       { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
       { label: "Neraca", href: "/dashboard/laporan/neraca-harian", icon: FileText },
+      { label: "Jurnal Umum", href: "/dashboard/jurnal", icon: FileText },
+      { label: "Akun (COA)", href: "/dashboard/akun", icon: FileText },
     ],
     []
   );

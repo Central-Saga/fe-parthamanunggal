@@ -1,0 +1,20 @@
+export type NeracaRow = {
+  kode_akun: string;
+  nama_akun: string;
+  saldo_awal: number;
+  mutasi_debet: number;
+  mutasi_kredit: number;
+  saldo_akhir: number;
+};
+
+export type NeracaResponse = {
+  tanggal: string;
+  data: NeracaRow[];
+  ringkasan: {
+    total_debet: number;
+    total_kredit: number;
+    shu_harian: number;
+    shu_kumulatif: number;
+  };
+};
+

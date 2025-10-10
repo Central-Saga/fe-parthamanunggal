@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import AccountSelect from '@/components/account/account-select';
 import { akunApi } from '@/lib/api-akun';
 import { jurnalApi } from '@/lib/api-jurnal';
-import { laporanApi } from '@/lib/api-laporan';
 import type { NeracaResponse } from '@/types/laporan';
 
 type Props = {
@@ -17,14 +16,16 @@ type Props = {
 export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaData }: Props) {
   const [akunId, setAkunId] = useState<number | null>(null);
   const [akunLawanId, setAkunLawanId] = useState<number | null>(null);
-  // Gunakan string untuk UX: input kosong ("") tidak menampilkan angka 0 yang mengganggu.
+  // Saldo awal dapat di-set (overwrite) melalui input di modal ini
   const [saldoAwalD, setSaldoAwalD] = useState<string>('');
   const [saldoAwalK, setSaldoAwalK] = useState<string>('');
+  const [saldoAwalDirty, setSaldoAwalDirty] = useState<boolean>(false);
   const [mutasiD, setMutasiD] = useState<string>('');
   const [mutasiK, setMutasiK] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentAwal, setCurrentAwal] = useState<{ d: number; k: number }>({ d: 0, k: 0 });
+  
 
   // Cari akun default penyeimbang: coba kode 3-1300 (L/R Tahun Berjalan), jika tidak ada ambil akun tipe modal pertama.
   useEffect(() => {
@@ -41,67 +42,59 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
     return () => { mounted = false };
   }, []);
 
-  // Tampilkan saldo awal sesuai tabel neraca untuk akun terpilih
+  // Ambil saldo awal akun via backend: /api/akuns/{id}/saldo-awal?tanggal=YYYY-MM-DD
   useEffect(() => {
     let cancelled = false;
-    async function syncSaldoAwal() {
+    async function loadSaldoAwal() {
       setCurrentAwal({ d: 0, k: 0 });
       if (!akunId) return;
       try {
-        const akun = await akunApi.show(akunId);
-        const kode = (akun as any)?.kode_akun as string | undefined;
-        if (!kode) return;
-        let data: NeracaResponse | null | undefined = neracaData;
-        if (!data) {
-          data = await laporanApi.getNeracaHarian(tanggal);
-        }
-        const row = data?.data?.find((r) => r.kode_akun === kode);
-        if (!row) return;
-        const awal = row.saldo_awal;
-        const d = awal >= 0 ? awal : 0;
-        const k = awal < 0 ? Math.abs(awal) : 0;
-        if (!cancelled) setCurrentAwal({ d, k });
-      } catch {}
+        const res = await akunApi.saldoAwal(akunId, tanggal);
+        if (!cancelled) setCurrentAwal({ d: res.debet || 0, k: res.kredit || 0 });
+      } catch {
+        // biarkan default 0 jika gagal
+      }
     }
-    syncSaldoAwal();
+    loadSaldoAwal();
     return () => { cancelled = true };
-  }, [akunId, tanggal, neracaData]);
+  }, [akunId, tanggal]);
+
+  // Sinkronkan input saldo awal dengan saldo saat ini (sekali, hingga user mengubah)
+  useEffect(() => {
+    if (saldoAwalDirty) return;
+    setSaldoAwalD(currentAwal.d ? String(currentAwal.d) : '');
+    setSaldoAwalK(currentAwal.k ? String(currentAwal.k) : '');
+  }, [currentAwal, saldoAwalDirty]);
 
   const neraca = useMemo(() => {
-    const awal = (parseFloat(saldoAwalD) || 0) - (parseFloat(saldoAwalK) || 0);
+    const awal = (currentAwal.d || 0) - (currentAwal.k || 0);
     const mut = (parseFloat(mutasiD) || 0) - (parseFloat(mutasiK) || 0);
     const akhir = awal + mut;
     return akhir >= 0
       ? { debet: akhir, kredit: 0 }
       : { debet: 0, kredit: Math.abs(akhir) };
-  }, [saldoAwalD, saldoAwalK, mutasiD, mutasiK]);
+  }, [currentAwal, mutasiD, mutasiK]);
 
   async function submit() {
     setError(null);
     if (!akunId) { setError('Pilih akun terlebih dahulu'); return; }
     if (!akunLawanId) { setError('Pilih akun lawan (penyeimbang)'); return; }
-    if (((parseFloat(saldoAwalD) || 0) > 0 && (parseFloat(saldoAwalK) || 0) > 0) ||
-        ((parseFloat(mutasiD) || 0) > 0 && (parseFloat(mutasiK) || 0) > 0)) {
+    if ((parseFloat(mutasiD) || 0) > 0 && (parseFloat(mutasiK) || 0) > 0) {
       setError('Debet/Kredit tidak boleh diisi bersamaan pada satu kelompok'); return;
     }
     setSaving(true);
     try {
       const jobs: Promise<any>[] = [];
-      // Saldo awal → jurnal tanggal H-1
-      if ((parseFloat(saldoAwalD) || 0) > 0 || (parseFloat(saldoAwalK) || 0) > 0) {
-        const t = new Date(tanggal + 'T00:00:00');
-        t.setDate(t.getDate() - 1);
-        const tStr = t.toISOString().slice(0, 10);
-        const isDebet = (parseFloat(saldoAwalD) || 0) > 0;
-        const amt = isDebet ? (parseFloat(saldoAwalD) || 0) : (parseFloat(saldoAwalK) || 0);
-        jobs.push(jurnalApi.create({
-          tanggal: tStr,
-          sumber: 'neraca-awal',
-          keterangan: 'Input saldo awal via neraca',
-          details: isDebet
-            ? [ { akun_id: akunId, debet: amt }, { akun_id: akunLawanId, kredit: amt } ]
-            : [ { akun_id: akunLawanId, debet: amt }, { akun_id: akunId, kredit: amt } ],
-        }));
+      // Set (overwrite) saldo awal via backend jika berubah dari nilai saat ini
+      const newD = parseFloat(saldoAwalD) || 0;
+      const newK = parseFloat(saldoAwalK) || 0;
+      if ((newD > 0 && newK > 0)) {
+        setSaving(false);
+        setError('Debet/Kredit tidak boleh diisi bersamaan pada satu kelompok');
+        return;
+      }
+      if (newD !== (currentAwal.d || 0) || newK !== (currentAwal.k || 0)) {
+        jobs.push(akunApi.setSaldoAwal(akunId, tanggal, { debet: newD, kredit: newK }));
       }
       // Mutasi hari ini → jurnal tanggal H
       if ((parseFloat(mutasiD) || 0) > 0 || (parseFloat(mutasiK) || 0) > 0) {
@@ -171,8 +164,7 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
                           placeholder="0"
                           min={0}
                           step={0.01}
-                          onFocus={(e) => { if (e.currentTarget.value === '0') setSaldoAwalD(''); }}
-                          onChange={(e) => { const v = e.target.value; setSaldoAwalD(v); if (parseFloat(v) > 0) setSaldoAwalK(''); }}
+                          onChange={(e) => { setSaldoAwalDirty(true); const v = e.target.value; setSaldoAwalD(v); if (parseFloat(v) > 0) setSaldoAwalK(''); }}
                         />
                       </td>
                       <td className="px-3 py-2 text-right">
@@ -183,15 +175,13 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
                           placeholder="0"
                           min={0}
                           step={0.01}
-                          onFocus={(e) => { if (e.currentTarget.value === '0') setSaldoAwalK(''); }}
-                          onChange={(e) => { const v = e.target.value; setSaldoAwalK(v); if (parseFloat(v) > 0) setSaldoAwalD(''); }}
+                          onChange={(e) => { setSaldoAwalDirty(true); const v = e.target.value; setSaldoAwalK(v); if (parseFloat(v) > 0) setSaldoAwalD(''); }}
                         />
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Isi salah satu sisi saja untuk saldo awal (Debet atau Kredit).</p>
             </section>
             <section className="rounded-lg border p-4">
               <div className="text-sm font-medium mb-3">Mutasi Hari Ini</div>

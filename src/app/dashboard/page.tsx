@@ -340,7 +340,7 @@ export default function DashboardHome() {
                       borderWidth: 1,
                       borderRadius: 6,
                       maxBarThickness: 44,
-                      yAxisID: 'yNominal',
+                      xAxisID: 'xNominal',
                     },
                     {
                       label: 'Jumlah Anggota',
@@ -350,7 +350,7 @@ export default function DashboardHome() {
                       borderWidth: 1,
                       borderRadius: 6,
                       maxBarThickness: 44,
-                      yAxisID: 'yAnggota',
+                      xAxisID: 'xAnggota',
                     },
                   ],
                 }}
@@ -373,27 +373,28 @@ export default function DashboardHome() {
                       },
                     },
                   },
-                  // vertical bars (default indexAxis)
+                  // horizontal bars to improve long labels
+                  indexAxis: 'y',
                   scales: {
-                    x: {
-                      grid: { display: false },
-                      ticks: { color: 'hsl(var(--foreground))' },
-                    },
-                    yNominal: {
-                      position: 'left',
+                    y: {
                       grid: { color: 'hsl(var(--muted) / 0.4)' },
-                      ticks: {
-                        color: 'hsl(var(--muted-foreground))',
-                        callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
-                      },
+                      ticks: { color: 'hsl(var(--muted-foreground))' },
                     },
-                    yAnggota: {
-                      position: 'right',
-                      grid: { drawOnChartArea: false },
+                    xNominal: {
+                      position: 'bottom',
                       ticks: {
-                        color: 'hsl(var(--muted-foreground))',
+                        color: 'hsl(var(--foreground))',
                         callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
                       },
+                      grid: { display: false },
+                    },
+                    xAnggota: {
+                      position: 'top',
+                      ticks: {
+                        color: 'hsl(var(--foreground))',
+                        callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
+                      },
+                      grid: { display: false },
                     },
                   },
                   animation: { duration: 450 },

@@ -24,6 +24,11 @@ export default function DashboardHome() {
   const [simpananByJenis, setSimpananByJenis] = useState<Array<{ key: string; label: string; total: number; anggotaCount: number }>>([]);
   const [loadingSimpanan, setLoadingSimpanan] = useState(false);
   const [metric, setMetric] = useState<'nominal' | 'anggota'>('nominal');
+  const [saldoTabungan, setSaldoTabungan] = useState<number | null>(null);
+  const [saldoSimpanan, setSaldoSimpanan] = useState<number | null>(null);
+  const [loadingTotals, setLoadingTotals] = useState<boolean>(false);
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
 
   useEffect(() => {
     let mounted = true;
@@ -158,6 +163,94 @@ export default function DashboardHome() {
     return () => { mounted = false };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    async function loadTotals() {
+      setLoadingTotals(true);
+      try {
+        const [tab, sim] = await Promise.all([
+          sumTabunganSaldo(),
+          sumSimpananTotal(),
+        ]);
+        if (mounted) {
+          setSaldoTabungan(tab);
+          setSaldoSimpanan(sim);
+        }
+      } finally {
+        if (mounted) setLoadingTotals(false);
+      }
+    }
+    loadTotals();
+    return () => { mounted = false };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadUsers() {
+      setLoadingUsers(true);
+      try {
+        const extractTotal = (r: any): number | null => {
+          const n =
+            Number(r?.data?.total) ??
+            Number(r?.meta?.total) ??
+            Number(r?.total) ??
+            Number(r?.pagination?.total) ??
+            Number(r?.data?.meta?.total) ??
+            null;
+          if (Number.isFinite(n)) return Number(n);
+          if (Array.isArray(r?.data)) return r.data.length;
+          if (Array.isArray(r)) return r.length;
+          return null;
+        };
+
+        async function tryCount(): Promise<number | null> {
+          for (const ep of [
+            "/api/users/count",
+            "/api/user/count",
+          ]) {
+            try {
+              const r: any = await apiRequest("GET", ep);
+              const val = Number(r?.count ?? r?.total ?? r?.data?.count);
+              if (Number.isFinite(val)) return val;
+            } catch {}
+          }
+          const bases = ["/api/users", "/api/user"];
+          const queries = [
+            "?page=1&per_page=1",
+            "?page=1&perPage=1",
+            "?page=1&limit=1",
+            "?page=1&page_size=1",
+            "?per_page=1",
+          ];
+          for (const b of bases) {
+            for (const q of queries) {
+              try {
+                const r: any = await apiRequest("GET", `${b}${q}`);
+                const t = extractTotal(r);
+                if (t != null) return t;
+              } catch {}
+            }
+          }
+          for (const b of bases) {
+            try {
+              const r: any = await apiRequest("GET", `${b}?page=1`);
+              const t = extractTotal(r);
+              if (t != null) return t;
+            } catch {}
+          }
+          return null;
+        }
+
+        const total = await tryCount();
+        if (mounted) setUserCount(total ?? 0);
+      } finally {
+        if (mounted) setLoadingUsers(false);
+      }
+    }
+    loadUsers();
+    return () => { mounted = false };
+  }, []);
+
   const valueFormatter = (n: number) => metric === 'nominal' ? formatCurrency(n) : new Intl.NumberFormat('id-ID').format(n);
 
   return (
@@ -177,6 +270,9 @@ export default function DashboardHome() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard icon={<Users className="size-4" />} title="Anggota" value={loading ? "-" : String(anggotaCount ?? "-")} href="/dashboard/anggota" />
+        <StatCard icon={<BookMarked className="size-4" />} title="Saldo Tabungan" value={loadingTotals ? '-' : formatCurrency(saldoTabungan ?? undefined)} href="/dashboard/tabungan/harian" />
+        <StatCard icon={<Wallet className="size-4" />} title="Saldo Simpanan" value={loadingTotals ? '-' : formatCurrency(saldoSimpanan ?? undefined)} href="/dashboard/simpanan/sukarela" />
+        <StatCard icon={<Users className="size-4" />} title="Users" value={loadingUsers ? '-' : String(userCount ?? '-')} href="/dashboard/users" />
       </div>
 
       <Card className="border">
@@ -333,4 +429,94 @@ async function countAnggotaForJenis(jenisId: number): Promise<number> {
     }
   }
   return seen.size;
+}
+
+async function sumTabunganSaldo(): Promise<number> {
+  let page = 1;
+  const perPageVariants = [100, 50, 25, 10];
+  let total = 0;
+  let lastPage = 1;
+  const pickArray = (r: any): any[] | null => {
+    if (Array.isArray(r)) return r;
+    if (Array.isArray(r?.data?.data)) return r.data.data;
+    if (Array.isArray(r?.data)) return r.data;
+    return null;
+  };
+  const pickLast = (r: any): number | null => (
+    Number(r?.data?.last_page) || Number(r?.meta?.last_page) || Number(r?.last_page) || Number(r?.pagination?.last_page) || null
+  );
+  for (const per of perPageVariants) {
+    try {
+      const first: any = await apiRequest('GET', `/api/tabungans?page=1&per_page=${per}`);
+      const items1 = pickArray(first) ?? [];
+      lastPage = pickLast(first) || 1;
+      for (const it of items1) {
+        const v = Number.parseFloat(String(it?.saldo ?? '0'));
+        if (!Number.isNaN(v)) total += v;
+      }
+      break;
+    } catch {
+      // try next per_page variant
+    }
+  }
+  if (lastPage > 1) {
+    for (page = 2; page <= lastPage; page++) {
+      try {
+        const r: any = await apiRequest('GET', `/api/tabungans?page=${page}&per_page=100`);
+        const items = pickArray(r) ?? [];
+        for (const it of items) {
+          const v = Number.parseFloat(String(it?.saldo ?? '0'));
+          if (!Number.isNaN(v)) total += v;
+        }
+      } catch {
+        break;
+      }
+    }
+  }
+  return total;
+}
+
+async function sumSimpananTotal(): Promise<number> {
+  let page = 1;
+  const perPageVariants = [100, 50, 25, 10];
+  let total = 0;
+  let lastPage = 1;
+  const pickArray = (r: any): any[] | null => {
+    if (Array.isArray(r)) return r;
+    if (Array.isArray(r?.data?.data)) return r.data.data;
+    if (Array.isArray(r?.data)) return r.data;
+    return null;
+  };
+  const pickLast = (r: any): number | null => (
+    Number(r?.data?.last_page) || Number(r?.meta?.last_page) || Number(r?.last_page) || Number(r?.pagination?.last_page) || null
+  );
+  for (const per of perPageVariants) {
+    try {
+      const first: any = await apiRequest('GET', `/api/simpanans?page=1&per_page=${per}`);
+      const items1 = pickArray(first) ?? [];
+      lastPage = pickLast(first) || 1;
+      for (const it of items1) {
+        const v = Number.parseFloat(String(it?.nominal ?? '0'));
+        if (!Number.isNaN(v)) total += v;
+      }
+      break;
+    } catch {
+      // try next per_page variant
+    }
+  }
+  if (lastPage > 1) {
+    for (page = 2; page <= lastPage; page++) {
+      try {
+        const r: any = await apiRequest('GET', `/api/simpanans?page=${page}&per_page=100`);
+        const items = pickArray(r) ?? [];
+        for (const it of items) {
+          const v = Number.parseFloat(String(it?.nominal ?? '0'));
+          if (!Number.isNaN(v)) total += v;
+        }
+      } catch {
+        break;
+      }
+    }
+  }
+  return total;
 }

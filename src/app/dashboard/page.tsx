@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Wallet, BookMarked } from "lucide-react";
 import { getJenisIdRuntime, getJenisIdFromEnv, resolveJenisId } from "@/lib/jenisSimpanan";
-import { ChartContainer, type ChartConfig, ChartTooltipContent, ChartTooltip } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList, CartesianGrid } from "recharts";
+import { getTabunganJenisIdRuntime, getTabunganJenisIdFromEnv, resolveTabunganJenisId } from "@/lib/jenisTabungan";
+import { Bar } from "react-chartjs-2";
+import "chart.js/auto";
 
 // Keep it simple: start with anggota count only
 type Summary = {
@@ -23,7 +24,8 @@ export default function DashboardHome() {
   const [error, setError] = useState<string | null>(null);
   const [simpananByJenis, setSimpananByJenis] = useState<Array<{ key: string; label: string; total: number; anggotaCount: number }>>([]);
   const [loadingSimpanan, setLoadingSimpanan] = useState(false);
-  const [metric, setMetric] = useState<'nominal' | 'anggota'>('nominal');
+  const [tabunganByJenis, setTabunganByJenis] = useState<Array<{ key: string; label: string; total: number; anggotaCount: number }>>([]);
+  const [loadingTabungan, setLoadingTabungan] = useState(false);
   const [saldoTabungan, setSaldoTabungan] = useState<number | null>(null);
   const [saldoSimpanan, setSaldoSimpanan] = useState<number | null>(null);
   const [loadingTotals, setLoadingTotals] = useState<boolean>(false);
@@ -165,6 +167,45 @@ export default function DashboardHome() {
 
   useEffect(() => {
     let mounted = true;
+    async function loadTabungan() {
+      setLoadingTabungan(true);
+      try {
+        const jenisKeys = [
+          "harian",
+          "berjangka",
+          "deposito",
+        ] as const;
+
+        const labelForKey: Record<typeof jenisKeys[number], string> = {
+          harian: "Harian",
+          berjangka: "Berjangka",
+          deposito: "Deposito",
+        };
+
+        const entries = await Promise.all(
+          jenisKeys.map(async (key) => {
+            let id = await getTabunganJenisIdRuntime(key);
+            if (!id) id = getTabunganJenisIdFromEnv(key);
+            if (!id) id = await resolveTabunganJenisId(key);
+            if (!id) return null;
+            const label = labelForKey[key];
+            const total = await sumTabunganForJenis(id);
+            const anggotaCount = await countAnggotaTabunganForJenis(id);
+            return { key, label, total, anggotaCount } as { key: string; label: string; total: number; anggotaCount: number };
+          })
+        );
+        const filtered = entries.filter(Boolean) as Array<{ key: string; label: string; total: number; anggotaCount: number }>;
+        if (mounted) setTabunganByJenis(filtered);
+      } finally {
+        if (mounted) setLoadingTabungan(false);
+      }
+    }
+    loadTabungan();
+    return () => { mounted = false };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
     async function loadTotals() {
       setLoadingTotals(true);
       try {
@@ -251,7 +292,7 @@ export default function DashboardHome() {
     return () => { mounted = false };
   }, []);
 
-  const valueFormatter = (n: number) => metric === 'nominal' ? formatCurrency(n) : new Intl.NumberFormat('id-ID').format(n);
+  
 
   return (
     <div className="p-6 space-y-6">
@@ -275,6 +316,7 @@ export default function DashboardHome() {
         <StatCard icon={<Users className="size-4" />} title="Users" value={loadingUsers ? '-' : String(userCount ?? '-')} href="/dashboard/users" />
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <Card className="border">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
@@ -285,39 +327,169 @@ export default function DashboardHome() {
             <div className="text-sm text-muted-foreground">Belum ada data.</div>
           )}
           {!loadingSimpanan && simpananByJenis.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Button size="sm" variant={metric === 'nominal' ? 'default' : 'outline'} onClick={() => setMetric('nominal')}>Nominal</Button>
-                <Button size="sm" variant={metric === 'anggota' ? 'default' : 'outline'} onClick={() => setMetric('anggota')}>Anggota</Button>
-              </div>
-              <div className="h-[360px]">
-                <ChartContainer
-                  config={{ bar: { label: metric === 'nominal' ? 'Nominal' : 'Anggota', color: '#10B981' }, label: { label: 'Label', color: 'var(--background)' } } satisfies ChartConfig}
-                  className="h-full w-full"
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      accessibilityLayer
-                      data={simpananByJenis.map((d) => ({ label: d.label, value: metric === 'nominal' ? Number(d.total || 0) : Number(d.anggotaCount || 0) }))}
-                      layout="vertical"
-                      margin={{ right: 16 }}
-                    >
-                      <CartesianGrid horizontal={false} />
-                      <YAxis dataKey="label" type="category" hide tickLine={false} tickMargin={10} axisLine={false} />
-                      <XAxis dataKey="value" type="number" hide />
-                      <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" valueFormatter={(v) => valueFormatter(v)} />} />
-                      <Bar dataKey="value" layout="vertical" fill="var(--color-bar)" radius={4}>
-                        <LabelList dataKey="label" position="insideLeft" offset={8} className="fill-[var(--color-label)]" fontSize={12} />
-                        <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} formatter={(v: number) => valueFormatter(v)} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </div>
+            <div className="h-[380px]">
+              <Bar
+                data={{
+                  labels: simpananByJenis.map((d) => d.label),
+                  datasets: [
+                    {
+                      label: 'Nominal (IDR)',
+                      data: simpananByJenis.map((d) => Number(d.total || 0)),
+                      backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                      borderColor: 'rgb(16, 185, 129)',
+                      borderWidth: 1,
+                      borderRadius: 6,
+                      maxBarThickness: 44,
+                      yAxisID: 'yNominal',
+                    },
+                    {
+                      label: 'Jumlah Anggota',
+                      data: simpananByJenis.map((d) => Number(d.anggotaCount || 0)),
+                      backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                      borderColor: 'rgb(59, 130, 246)',
+                      borderWidth: 1,
+                      borderRadius: 6,
+                      maxBarThickness: 44,
+                      yAxisID: 'yAnggota',
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  layout: { padding: 8 },
+                  plugins: {
+                    legend: { display: true, labels: { boxWidth: 12 } },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const raw = Number(ctx.raw || 0);
+                          const isNominal = ctx.dataset?.label?.toLowerCase().includes('nominal');
+                          const value = isNominal
+                            ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(raw)
+                            : new Intl.NumberFormat('id-ID').format(raw);
+                          return `${ctx.dataset.label}: ${value}`;
+                        },
+                      },
+                    },
+                  },
+                  // vertical bars (default indexAxis)
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      ticks: { color: 'hsl(var(--foreground))' },
+                    },
+                    yNominal: {
+                      position: 'left',
+                      grid: { color: 'hsl(var(--muted) / 0.4)' },
+                      ticks: {
+                        color: 'hsl(var(--muted-foreground))',
+                        callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
+                      },
+                    },
+                    yAnggota: {
+                      position: 'right',
+                      grid: { drawOnChartArea: false },
+                      ticks: {
+                        color: 'hsl(var(--muted-foreground))',
+                        callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
+                      },
+                    },
+                  },
+                  animation: { duration: 450 },
+                }}
+              />
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Card className="border">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium">Tabungan per Jenis</div>
+            {loadingTabungan && <div className="text-xs text-muted-foreground">Memuat…</div>}
+          </div>
+          {!loadingTabungan && tabunganByJenis.length === 0 && (
+            <div className="text-sm text-muted-foreground">Belum ada data.</div>
+          )}
+          {!loadingTabungan && tabunganByJenis.length > 0 && (
+            <div className="h-[380px]">
+              <Bar
+                data={{
+                  labels: tabunganByJenis.map((d) => d.label),
+                  datasets: [
+                    {
+                      label: 'Nominal (IDR)',
+                      data: tabunganByJenis.map((d) => Number(d.total || 0)),
+                      backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                      borderColor: 'rgb(16, 185, 129)',
+                      borderWidth: 1,
+                      borderRadius: 6,
+                      maxBarThickness: 44,
+                      yAxisID: 'yNominal',
+                    },
+                    {
+                      label: 'Jumlah Anggota',
+                      data: tabunganByJenis.map((d) => Number(d.anggotaCount || 0)),
+                      backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                      borderColor: 'rgb(59, 130, 246)',
+                      borderWidth: 1,
+                      borderRadius: 6,
+                      maxBarThickness: 44,
+                      yAxisID: 'yAnggota',
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  layout: { padding: 8 },
+                  plugins: {
+                    legend: { display: true, labels: { boxWidth: 12 } },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const raw = Number(ctx.raw || 0);
+                          const isNominal = ctx.dataset?.label?.toLowerCase().includes('nominal');
+                          const value = isNominal
+                            ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(raw)
+                            : new Intl.NumberFormat('id-ID').format(raw);
+                          return `${ctx.dataset.label}: ${value}`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: { display: false },
+                      ticks: { color: 'hsl(var(--foreground))' },
+                    },
+                    yNominal: {
+                      position: 'left',
+                      grid: { color: 'hsl(var(--muted) / 0.4)' },
+                      ticks: {
+                        color: 'hsl(var(--muted-foreground))',
+                        callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
+                      },
+                    },
+                    yAnggota: {
+                      position: 'right',
+                      grid: { drawOnChartArea: false },
+                      ticks: {
+                        color: 'hsl(var(--muted-foreground))',
+                        callback: (v) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Number(v)),
+                      },
+                    },
+                  },
+                  animation: { duration: 450 },
+                }}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      </div>
     </div>
   );
 }
@@ -519,4 +691,87 @@ async function sumSimpananTotal(): Promise<number> {
     }
   }
   return total;
+}
+
+async function sumTabunganForJenis(jenisId: number): Promise<number> {
+  let page = 1;
+  const perPageVariants = [100, 50, 25, 10];
+  let total = 0;
+  let lastPage = 1;
+  const pickArray = (r: any): any[] | null => {
+    if (Array.isArray(r)) return r;
+    if (Array.isArray(r?.data?.data)) return r.data.data;
+    if (Array.isArray(r?.data)) return r.data;
+    return null;
+  };
+  const pickLast = (r: any): number | null => (
+    Number(r?.data?.last_page) || Number(r?.meta?.last_page) || Number(r?.last_page) || Number(r?.pagination?.last_page) || null
+  );
+  for (const per of perPageVariants) {
+    try {
+      const first: any = await apiRequest('GET', `/api/tabungans?jenis_tabungan_id=${jenisId}&page=1&per_page=${per}`);
+      const items1 = pickArray(first) ?? [];
+      lastPage = pickLast(first) || 1;
+      for (const it of items1) {
+        const v = Number.parseFloat(String(it?.saldo ?? '0'));
+        if (!Number.isNaN(v)) total += v;
+      }
+      break;
+    } catch {}
+  }
+  if (lastPage > 1) {
+    for (page = 2; page <= lastPage; page++) {
+      try {
+        const r: any = await apiRequest('GET', `/api/tabungans?jenis_tabungan_id=${jenisId}&page=${page}&per_page=100`);
+        const items = pickArray(r) ?? [];
+        for (const it of items) {
+          const v = Number.parseFloat(String(it?.saldo ?? '0'));
+          if (!Number.isNaN(v)) total += v;
+        }
+      } catch {
+        break;
+      }
+    }
+  }
+  return total;
+}
+
+async function countAnggotaTabunganForJenis(jenisId: number): Promise<number> {
+  let page = 1;
+  const perPage = 100;
+  const seen = new Set<number>();
+  const pickArray = (r: any): any[] | null => {
+    if (Array.isArray(r)) return r;
+    if (Array.isArray(r?.data?.data)) return r.data.data;
+    if (Array.isArray(r?.data)) return r.data;
+    return null;
+  };
+  const pickLast = (r: any): number | null => (
+    Number(r?.data?.last_page) || Number(r?.meta?.last_page) || Number(r?.last_page) || Number(r?.pagination?.last_page) || null
+  );
+  let lastPage = 1;
+  try {
+    const first: any = await apiRequest('GET', `/api/tabungans?jenis_tabungan_id=${jenisId}&page=1&per_page=${perPage}`);
+    const items1 = pickArray(first) ?? [];
+    lastPage = pickLast(first) || 1;
+    for (const it of items1) {
+      const id = Number(it?.anggota_id);
+      if (Number.isFinite(id)) seen.add(id);
+    }
+  } catch {}
+  if (lastPage > 1) {
+    for (page = 2; page <= lastPage; page++) {
+      try {
+        const r: any = await apiRequest('GET', `/api/tabungans?jenis_tabungan_id=${jenisId}&page=${page}&per_page=${perPage}`);
+        const items = pickArray(r) ?? [];
+        for (const it of items) {
+          const id = Number(it?.anggota_id);
+          if (Number.isFinite(id)) seen.add(id);
+        }
+      } catch {
+        break;
+      }
+    }
+  }
+  return seen.size;
 }

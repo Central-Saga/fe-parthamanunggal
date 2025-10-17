@@ -36,7 +36,7 @@ export default function LoginPage() {
             <div className="p-10 md:p-12 flex flex-col justify-center h-full">
               <div className="flex flex-col items-center text-center mb-6">
                 {/* Logo, keep aspect ratio (no stretch) */}
-                <img src="/logo_koperasi.png" alt="Logo Koperasi" className="h-12 w-auto object-contain mb-3" />
+                <img src="/logo_koperasi.png" alt="Logo Koperasi" className="h-32 w-auto object-contain mb-3" />
                 <h1 className="text-2xl font-semibold tracking-tight">Masuk</h1>
                 <p className="text-sm text-muted-foreground mt-1">Silakan masuk untuk melanjutkan</p>
               </div>

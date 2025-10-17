@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { laporanApi } from '@/lib/api-laporan';
+import { Button } from '@/components/ui/button';
 import NeracaTable from '@/components/finance/neraca-table';
 import type { NeracaResponse } from '@/types/laporan';
 import NeracaCreateModal from '@/components/finance/neraca-create-modal';
@@ -31,8 +32,8 @@ export default function NeracaHarianPage() {
         <h1 className="text-lg font-semibold">Neraca Saldo Harian</h1>
         <div className="flex items-center gap-2">
           <input type="date" className="rounded-md border px-3 py-2 text-sm" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
-          <button className="rounded-md bg-emerald-600 text-white px-3 py-2 text-sm" onClick={load}>Muat</button>
-          <button className="rounded-md bg-emerald-700 text-white px-3 py-2 text-sm" onClick={() => setOpenCreate(true)}>Buat Baris</button>
+          <Button onClick={load} variant="outline">Muat</Button>
+          <Button onClick={() => setOpenCreate(true)}>Buat Baris</Button>
         </div>
       </div>
       {error && <div className="text-sm text-red-700">{error}</div>}

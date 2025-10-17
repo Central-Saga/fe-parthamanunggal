@@ -67,13 +67,41 @@ export default function DashboardSidebar() {
         ],
       },
       { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: FileText },
-      { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
+      // { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
       { label: "Neraca", href: "/dashboard/laporan/neraca-harian", icon: FileText },
       { label: "Jurnal Umum", href: "/dashboard/jurnal", icon: FileText },
       { label: "Akun (COA)", href: "/dashboard/akun", icon: FileText },
     ],
     []
   );
+
+  // Determine which hrefs should only match exactly (to avoid parent prefix being active, e.g. '/dashboard/laporan' vs '/dashboard/laporan/neraca-harian')
+  const exactOnlyHrefs = useMemo(() => {
+    const hrefs: string[] = [];
+    for (const it of menu) {
+      if (it.href) hrefs.push(it.href);
+      if (it.children) for (const c of it.children) if (c.href) hrefs.push(c.href);
+    }
+    // Include admin links too
+    const adminList: Item[] = [
+      { label: "Users", href: "/dashboard/users" },
+      { label: "Roles", href: "/dashboard/roles" },
+      { label: "Anggota", href: "/dashboard/anggota" },
+      { label: "Generate Bunga", href: "/dashboard/generate-bunga" },
+    ];
+    for (const it of adminList) if (it.href) hrefs.push(it.href);
+
+    const set = new Set<string>();
+    for (const h of hrefs) {
+      for (const other of hrefs) {
+        if (h !== other && other.startsWith(h + "/")) {
+          set.add(h);
+          break;
+        }
+      }
+    }
+    return set;
+  }, [menu]);
 
   // Dynamically update Simpanan submenu labels from backend by ID, if provided in env
   useEffect(() => {
@@ -123,9 +151,12 @@ export default function DashboardSidebar() {
   // ⬇️ Tutup semua grup di awal, tapi buka otomatis kalau ada child yang aktif
   const initialOpen = useMemo(() => {
     const state: Record<string, boolean> = {};
+    let openedOnce = false;
     for (const item of menu) {
       if (item.children) {
-        state[item.label] = item.children.some((c) => isActive(pathname, c.href)) || false;
+        const shouldOpen = !openedOnce && item.children.some((c) => isActive(pathname, c.href));
+        state[item.label] = shouldOpen;
+        if (shouldOpen) openedOnce = true;
       }
     }
     return state;
@@ -135,15 +166,16 @@ export default function DashboardSidebar() {
 
   // ⬇️ Saat route berubah, pastikan grup yang aktif otomatis terbuka (tanpa memaksa grup lain menutup)
   useEffect(() => {
-    setOpen((o) => {
-      const next = { ...o };
-      for (const item of menu) {
-        if (item.children && item.children.some((c) => isActive(pathname, c.href))) {
-          next[item.label] = true;
-        }
+    const next: Record<string, boolean> = {};
+    let openedOnce = false;
+    for (const item of menu) {
+      if (item.children) {
+        const shouldOpen = !openedOnce && item.children.some((c) => isActive(pathname, c.href));
+        next[item.label] = shouldOpen;
+        if (shouldOpen) openedOnce = true;
       }
-      return next;
-    });
+    }
+    setOpen(next);
   }, [pathname, menu]);
 
   return (
@@ -165,7 +197,15 @@ export default function DashboardSidebar() {
                       icon={item.icon}
                       active={item.children.some((c) => isActive(pathname, c.href))}
                       open={open[item.label]}
-                      onToggle={() => setOpen((o) => ({ ...o, [item.label]: !o[item.label] }))}
+                      onToggle={() =>
+                        setOpen((prev) => {
+                          const isCurrentlyOpen = !!prev[item.label];
+                          const next: Record<string, boolean> = {};
+                          for (const k of Object.keys(prev)) next[k] = false;
+                          if (!isCurrentlyOpen) next[item.label] = true;
+                          return next;
+                        })
+                      }
                     >
                       {item.children.map((c) => {
                         const link = (
@@ -185,12 +225,20 @@ export default function DashboardSidebar() {
                     </Collapsible>
                   ) : item.label === 'Pengaturan Bunga' ? (
                     <PermissionGate required={["mengelola pengaturan"]}>
-                      <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
+                      <SidebarItem
+                        href={item.href!}
+                        icon={item.icon}
+                        active={exactOnlyHrefs.has(item.href!) ? pathname === item.href : isActive(pathname, item.href)}
+                      >
                         {item.label}
                       </SidebarItem>
                     </PermissionGate>
                   ) : (
-                    <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
+                    <SidebarItem
+                      href={item.href!}
+                      icon={item.icon}
+                      active={exactOnlyHrefs.has(item.href!) ? pathname === item.href : isActive(pathname, item.href)}
+                    >
                       {item.label}
                     </SidebarItem>
                   )}
@@ -216,7 +264,11 @@ export default function DashboardSidebar() {
                 }
                 return (
                   <li key={item.label}>
-                    <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
+                    <SidebarItem
+                      href={item.href!}
+                      icon={item.icon}
+                      active={exactOnlyHrefs.has(item.href!) ? pathname === item.href : isActive(pathname, item.href)}
+                    >
                       {item.label}
                     </SidebarItem>
                   </li>
@@ -266,12 +318,12 @@ function ProfileMenu() {
       if (!ref.current) return;
       if (!ref.current.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    if (open) document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
   }, [open]);
 
   return (
-    <div className="mt-auto" ref={ref}>
+    <div className="mt-auto relative mx-2" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -286,21 +338,22 @@ function ProfileMenu() {
           <div className="text-sm font-medium leading-none">Profil</div>
           <div className="text-xs text-muted-foreground">Akun & notifikasi</div>
         </div>
-        <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div
           role="menu"
-          className="mt-2 mx-2 rounded-xl border bg-popover text-popover-foreground shadow-md overflow-hidden"
+          className="absolute bottom-full mb-2 left-0 right-0 z-50 rounded-xl border bg-popover text-popover-foreground shadow-md overflow-hidden"
         >
-          <a
+          <Link
             href="/dashboard/notifikasi"
             className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/80"
             role="menuitem"
+            onClick={() => setOpen(false)}
           >
             <Bell className="h-4 w-4 text-muted-foreground" />
             <span>Notifikasi</span>
-          </a>
+          </Link>
           <button
             type="button"
             onClick={() => logout()}

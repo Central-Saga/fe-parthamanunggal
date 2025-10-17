@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { jurnalApi } from '@/lib/api-jurnal';
 
 export default function JurnalListPage() {
@@ -28,7 +29,9 @@ export default function JurnalListPage() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Jurnal Umum</h1>
-        <Link href="/dashboard/jurnal/new" className="rounded-md bg-emerald-600 text-white px-3 py-2 text-sm">Tambah Jurnal</Link>
+        <Button asChild>
+          <Link href="/dashboard/jurnal/new">Tambah Jurnal</Link>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-2 items-end">
         <label className="grid gap-1">

@@ -120,10 +120,9 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl border">
+      <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl border overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
           <h2 className="font-medium">Input Baris Neraca</h2>
-          <button onClick={onClose} className="text-sm text-muted-foreground hover:underline">Tutup</button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -141,17 +140,14 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <section className="rounded-lg border p-4">
-              <div className="text-sm font-medium mb-1">Saldo Awal (s/d H-1)</div>
-              <div className="mb-2 text-xs text-muted-foreground">Saldo awal saat ini: 
-                <span className="ml-1">Debet <span className="font-semibold text-emerald-700">{currentAwal.d.toLocaleString('id-ID')}</span></span>
-                <span className="ml-3">Kredit <span className="font-semibold text-rose-700">{currentAwal.k.toLocaleString('id-ID')}</span></span>
-              </div>
+              <div className="text-sm font-medium mb-2">Saldo Awal (s/d H-1)</div>
+              {/* Helper text moved below inputs; removed inline current values for cleaner alignment */}
               <div className="overflow-x-auto">
-                <table className="min-w-[420px] w-full text-sm">
+                <table className="min-w-[420px] w-full text-sm table-fixed">
                   <thead>
                     <tr className="bg-muted/40">
-                      <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
-                      <th className="px-3 py-2 text-right text-rose-700">Kredit</th>
+                      <th className="px-3 py-2 text-center text-emerald-700">Debet</th>
+                      <th className="px-3 py-2 text-center text-rose-700">Kredit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -182,15 +178,16 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
                   </tbody>
                 </table>
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">Isi salah satu sisi saja untuk saldo awal (Debet atau Kredit).</p>
             </section>
             <section className="rounded-lg border p-4">
-              <div className="text-sm font-medium mb-3">Mutasi Hari Ini</div>
+              <div className="text-sm font-medium mb-2">Mutasi Hari Ini</div>
               <div className="overflow-x-auto">
-                <table className="min-w-[420px] w-full text-sm">
+                <table className="min-w-[420px] w-full text-sm table-fixed">
                   <thead>
                     <tr className="bg-muted/40">
-                      <th className="px-3 py-2 text-right text-emerald-700">Debet</th>
-                      <th className="px-3 py-2 text-right text-rose-700">Kredit</th>
+                      <th className="px-3 py-2 text-center text-emerald-700">Debet</th>
+                      <th className="px-3 py-2 text-center text-rose-700">Kredit</th>
                     </tr>
                   </thead>
                   <tbody>

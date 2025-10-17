@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { akunApi } from '@/lib/api-akun';
 import type { Akun, Paginated } from '@/types/akun';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function AkunListPage() {
   const [data, setData] = useState<Akun[]>([]);
@@ -35,7 +36,9 @@ export default function AkunListPage() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Akun (COA)</h1>
-        <Link className="rounded-md bg-emerald-600 text-white px-3 py-2 text-sm" href="/dashboard/akun/new">Tambah Akun</Link>
+        <Button asChild>
+          <Link href="/dashboard/akun/new">Tambah Akun</Link>
+        </Button>
       </div>
       <div className="flex gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari kode/nama…" className="w-64 rounded-md border px-3 py-2 text-sm" />

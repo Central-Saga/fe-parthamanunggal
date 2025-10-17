@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Wallet, BookMarked } from "lucide-react";
+import { Users, Wallet, BookMarked, UserPlus, PlusCircle, FileText } from "lucide-react";
+import PermissionGate from "@/components/permission-gate";
 import { getJenisIdRuntime, getJenisIdFromEnv, resolveJenisId } from "@/lib/jenisSimpanan";
 import { getTabunganJenisIdRuntime, getTabunganJenisIdFromEnv, resolveTabunganJenisId } from "@/lib/jenisTabungan";
 import { Bar } from "react-chartjs-2";
@@ -315,6 +316,134 @@ export default function DashboardHome() {
         <StatCard icon={<Wallet className="size-4" />} title="Saldo Simpanan" value={loadingTotals ? '-' : formatCurrency(saldoSimpanan ?? undefined)} href="/dashboard/simpanan/sukarela" />
         <StatCard icon={<Users className="size-4" />} title="Users" value={loadingUsers ? '-' : String(userCount ?? '-')} href="/dashboard/users" />
       </div>
+
+      <Card className="border">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-medium">Quick Actions</div>
+              <div className="text-xs text-muted-foreground">Akses cepat ke fitur yang sering dipakai</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <Link
+              href="/dashboard/anggota/create"
+              className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+              aria-label="Tambah Anggota"
+            >
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
+                <UserPlus className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium leading-tight truncate">Tambah Anggota</div>
+                <div className="text-xs text-muted-foreground truncate">Buat data anggota baru</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/dashboard/catat-tabungan"
+              className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+              aria-label="Catat Tabungan"
+            >
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                <BookMarked className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium leading-tight truncate">Catat Tabungan</div>
+                <div className="text-xs text-muted-foreground truncate">Transaksi setoran/penarikan</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/dashboard/tabungan/harian/create"
+              className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+              aria-label="Tambah Tabungan Harian"
+            >
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                <PlusCircle className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium leading-tight truncate">Tambah Tabungan Harian</div>
+                <div className="text-xs text-muted-foreground truncate">Buka rekening baru</div>
+              </div>
+            </Link>
+
+            <PermissionGate required={["mengelola bunga"]}>
+              <Link
+                href="/dashboard/generate-bunga"
+                className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+                aria-label="Generate Bunga"
+              >
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-purple-100 text-purple-700">
+                  <FileText className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium leading-tight truncate">Generate Bunga</div>
+                  <div className="text-xs text-muted-foreground truncate">Hitung bunga periode</div>
+                </div>
+              </Link>
+            </PermissionGate>
+
+            <PermissionGate required={["mengelola pengaturan"]}>
+              <Link
+                href="/dashboard/pengaturan-bunga"
+                className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+                aria-label="Pengaturan Bunga"
+              >
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+                  <FileText className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium leading-tight truncate">Pengaturan Bunga</div>
+                  <div className="text-xs text-muted-foreground truncate">Kelola parameter bunga</div>
+                </div>
+              </Link>
+            </PermissionGate>
+
+            <Link
+              href="/dashboard/jurnal"
+              className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+              aria-label="Jurnal Umum"
+            >
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-rose-100 text-rose-700">
+                <FileText className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium leading-tight truncate">Jurnal Umum</div>
+                <div className="text-xs text-muted-foreground truncate">Catat transaksi harian</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/dashboard/laporan/neraca-harian"
+              className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+              aria-label="Neraca Harian"
+            >
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-cyan-100 text-cyan-700">
+                <FileText className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium leading-tight truncate">Neraca Harian</div>
+                <div className="text-xs text-muted-foreground truncate">Lihat posisi keuangan</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/dashboard/akun"
+              className="group flex items-center gap-3 rounded-lg border p-3 hover:bg-muted transition-colors"
+              aria-label="Akun (COA)"
+            >
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-teal-100 text-teal-700">
+                <FileText className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium leading-tight truncate">Akun (COA)</div>
+                <div className="text-xs text-muted-foreground truncate">Kelola Chart of Accounts</div>
+              </div>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <Card className="border">

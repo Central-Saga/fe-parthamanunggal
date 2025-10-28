@@ -13,8 +13,9 @@ export type NeracaResponse = {
   ringkasan: {
     total_debet: number;
     total_kredit: number;
+    shu_awal?: number;
     shu_harian: number;
     shu_kumulatif: number;
+    source?: 'snapshot' | 'jurnal';
   };
 };
-

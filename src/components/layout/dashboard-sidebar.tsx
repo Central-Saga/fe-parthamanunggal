@@ -151,9 +151,10 @@ export default function DashboardSidebar() {
           { label: "Bunga Tabungan", href: "/dashboard/bunga-tabungan" },
         ],
       },
-      { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: PengaturanIcon },
+            { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: PengaturanIcon },
       // { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
       { label: "Neraca", href: "/dashboard/laporan/neraca-harian", icon: NeracaIcon },
+      { label: "SHU", href: "/dashboard/laporan/shu", icon: FileText },
       { label: "Jurnal Umum", href: "/dashboard/jurnal", icon: FileText },
       { label: "Akun (COA)", href: "/dashboard/akun", icon: AkunIcon },
     ],
@@ -510,3 +511,11 @@ function SidebarLink({ href, active, children }: { href: string; active?: boolea
     </Link>
   );
 }
+
+
+
+
+
+
+
+

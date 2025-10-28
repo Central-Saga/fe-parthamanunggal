@@ -27,15 +27,34 @@ export default function NeracaCreateModal({ tanggal, onClose, onSaved, neracaDat
   const [currentAwal, setCurrentAwal] = useState<{ d: number; k: number }>({ d: 0, k: 0 });
   
 
-  // Cari akun default penyeimbang: coba kode 3-1300 (L/R Tahun Berjalan), jika tidak ada ambil akun tipe modal pertama.
+  // Cari akun default penyeimbang: pilih akun tipe 'modal' yang paling relevan
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const res: any = await akunApi.list({ per_page: 200 });
         const rows: any[] = Array.isArray(res) ? res : res.data || [];
-        let candidate = rows.find((a) => a.kode_akun === '3-1300');
-        if (!candidate) candidate = rows.find((a) => a.tipe === 'modal');
+
+        // Pilih kandidat terbaik berdasarkan nama yang umum untuk akun modal SHU/laba
+        const keywords = [
+          'SISA HASIL USAHA', 'SHU',
+          'LABA DITAHAN', 'SALDO LABA',
+          'TAHUN BERJALAN', 'LABA RUGI',
+          'SURPLUS', 'DEFISIT'
+        ];
+
+        function score(a: any) {
+          const name = String(a?.nama_akun || '').toUpperCase();
+          let s = 0;
+          for (const k of keywords) if (name.includes(k)) s += 1;
+          return s;
+        }
+
+        const modalRows = rows.filter((a) => a?.tipe === 'modal' && !a?.is_header);
+        let candidate = modalRows
+          .map((a) => ({ a, s: score(a) }))
+          .sort((x, y) => y.s - x.s)[0]?.a;
+        if (!candidate && modalRows.length) candidate = modalRows[0];
         if (mounted && candidate) setAkunLawanId(candidate.id);
       } catch {}
     })();

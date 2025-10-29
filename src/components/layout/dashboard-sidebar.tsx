@@ -153,9 +153,17 @@ export default function DashboardSidebar() {
       },
             { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: PengaturanIcon },
       // { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
-      { label: "Neraca", href: "/dashboard/laporan/neraca-harian", icon: NeracaIcon },
-      { label: "SHU", href: "/dashboard/laporan/shu", icon: FileText },
-      { label: "Jurnal Umum", href: "/dashboard/jurnal", icon: FileText },
+      {
+        label: "Neraca",
+        icon: NeracaIcon,
+        children: [
+          { label: "Harian", href: "/dashboard/laporan/neraca-harian" },
+          { label: "Bulanan", href: "/dashboard/laporan/neraca-bulanan" },
+          { label: "Tahunan", href: "/dashboard/laporan/neraca-tahunan" },
+        ],
+      },
+      // { label: "SHU", href: "/dashboard/laporan/shu", icon: FileText }, // hidden by request
+      // { label: "Jurnal Umum", href: "/dashboard/jurnal", icon: FileText }, // hidden by request
       { label: "Akun (COA)", href: "/dashboard/akun", icon: AkunIcon },
     ],
     []

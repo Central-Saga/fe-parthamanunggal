@@ -74,8 +74,8 @@ export default function NeracaHarianPage() {
             <div className="-mt-2">
               <ShuSummary
                 shu_awal={data.ringkasan.shu_awal || 0}
-                shu_harian={data.ringkasan.shu_harian}
-                shu_kumulatif={data.ringkasan.shu_kumulatif}
+                shu_harian={data.ringkasan.shu_harian || 0}
+                shu_kumulatif={data.ringkasan.shu_kumulatif || 0}
               />
             </div>
           )}

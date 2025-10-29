@@ -23,4 +23,14 @@ export const financeApi = {
     // To be replaced when backend available
     return apiRequest('GET', '/api/laporan/shu-tahunan', undefined, { params: { tahun } });
   },
+
+  // Neraca Bulanan (aggregated from harian by backend)
+  async getNeracaBulanan(tahun: number, bulan: number): Promise<NeracaHarianResponse> {
+    return apiRequest<NeracaHarianResponse>('GET', '/api/laporan/neraca-bulanan', undefined, { params: { tahun, bulan } });
+  },
+
+  // Neraca Tahunan (aggregated from bulanan/harian by backend)
+  async getNeracaTahunan(tahun: number): Promise<NeracaHarianResponse> {
+    return apiRequest<NeracaHarianResponse>('GET', '/api/laporan/neraca-tahunan', undefined, { params: { tahun } });
+  },
 };

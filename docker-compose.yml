@@ -1,0 +1,40 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        # Ensure the client bundle calls your local backend
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+        # Optional legacy var support (config.ts reads both)
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        # Force client to use Next server proxy
+        NEXT_PUBLIC_USE_SERVER_AUTH: "1"
+        NEXT_PUBLIC_USE_SANCTUM: "1"
+        # Critical: bake proxy target for production bundle inside container
+        INTERNAL_API_BASE_URL: http://host.docker.internal:8000
+        NEXT_PUBLIC_AUTO_LOGIN: "1"
+        NEXT_PUBLIC_AUTO_LOGIN_EMAIL: admin@example.com
+        NEXT_PUBLIC_AUTO_LOGIN_PASSWORD: password
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # For any server-side fetches inside Next.js container
+      - INTERNAL_API_BASE_URL=http://host.docker.internal:8000
+      # Keep also as runtime env (server may read it)
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+      - NEXT_PUBLIC_USE_SERVER_AUTH=1
+      - NEXT_PUBLIC_USE_SANCTUM=1
+      - NEXT_PUBLIC_AUTO_LOGIN=1
+      - NEXT_PUBLIC_AUTO_LOGIN_EMAIL=admin@example.com
+      - NEXT_PUBLIC_AUTO_LOGIN_PASSWORD=password
+    # Uncomment to use .env values
+    # env_file:
+    #   - .env
+    # If you prefer dev mode:
+    # command: npm run dev
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    #   - /app/.next
+

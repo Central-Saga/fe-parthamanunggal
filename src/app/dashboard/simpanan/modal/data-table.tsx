@@ -1,0 +1,41 @@
+'use client';
+
+import StandardDataTable from '@/components/data/standard-data-table';
+import type { Simpanan } from '@/types/simpanan';
+import { simpananModalColumns } from './columns';
+import { getJenisIdFromEnv, resolveJenisId, getJenisIdRuntime } from '@/lib/jenisSimpanan';
+import { useEffect, useState } from 'react';
+
+export default function SimpananModalDataTable() {
+  const envId = getJenisIdFromEnv('modal');
+  const initial = envId ? `/api/simpanans?jenis_simpanan_id=${envId}` : '/api/simpanans';
+  const [url, setUrl] = useState<string>(initial);
+  const [createHref, setCreateHref] = useState<string>(`/dashboard/simpanan/modal/create${envId ? `?jenisId=${envId}` : ''}`);
+  useEffect(() => {
+    let mounted = true;
+    async function set() {
+      const envId = getJenisIdFromEnv('modal');
+      const runtimeId = await getJenisIdRuntime('modal');
+      const id = envId ?? runtimeId ?? (await resolveJenisId('modal'));
+      const built = id ? `/api/simpanans?jenis_simpanan_id=${id}` : '/api/simpanans';
+      if (mounted) {
+        setUrl(built);
+        setCreateHref(`/dashboard/simpanan/modal/create${id ? `?jenisId=${id}` : ''}`);
+      }
+    }
+    set();
+    return () => { mounted = false };
+  }, []);
+  return (
+    <StandardDataTable<Simpanan>
+      columns={simpananModalColumns}
+      listUrl={url}
+      createHref={createHref}
+      createLabel="Tambah Simpanan Modal"
+      onDeleteUrl={(id) => `/api/simpanans/${id}`}
+      searchPlaceholder="Cari simpanan..."
+      emptyText="Belum ada simpanan modal"
+    />
+  );
+}
+

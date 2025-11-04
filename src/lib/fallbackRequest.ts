@@ -29,8 +29,10 @@ export interface FallbackResponse<T> {
 /**
  * Default configuration untuk fallback request
  */
+import { getApiBaseUrl } from './config'
+
 const DEFAULT_CONFIG = {
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.parthamanunggal.com',
+  baseUrl: getApiBaseUrl(),
   timeout: 30000,
   withCredentials: false,
   headers: {

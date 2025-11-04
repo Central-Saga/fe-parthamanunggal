@@ -84,7 +84,10 @@ File `src/lib/utils.ts` berisi utility functions:
 Untuk development, buat file `.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.parthamanunggal.com
+# Prefer this (used across the app)
+NEXT_PUBLIC_API_BASE_URL=https://api.parthamanunggal.com
+# Legacy alias still supported by code
+# NEXT_PUBLIC_API_URL=https://api.parthamanunggal.com
 NODE_ENV=development
 ```
 

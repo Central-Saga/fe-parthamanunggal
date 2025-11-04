@@ -8,7 +8,7 @@ Buat file `.env.local` di root project dengan isi berikut:
 
 ```bash
 # API Configuration
-NEXT_PUBLIC_API_URL=https://api.parthamanunggal.com
+NEXT_PUBLIC_API_BASE_URL=https://api.parthamanunggal.com
 
 # Authentication
 NEXT_PUBLIC_AUTH_REDIRECT_URL=http://localhost:3000/auth/callback
@@ -40,7 +40,7 @@ yarn dev
 
 ### Wajib
 
--   `NEXT_PUBLIC_API_URL`: URL API backend
+-   `NEXT_PUBLIC_API_BASE_URL`: URL API backend
 -   `NODE_ENV`: Environment (development/production)
 
 ### Opsional

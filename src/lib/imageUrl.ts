@@ -17,8 +17,10 @@ export interface ImageUrlOptions {
 /**
  * Configuration untuk image service
  */
+import { getApiBaseUrl } from './config'
+
 const IMAGE_CONFIG = {
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.parthamanunggal.com',
+  apiUrl: getApiBaseUrl(),
   storagePath: '/storage',
   tripPath: '/trip',
   defaultQuality: 80,

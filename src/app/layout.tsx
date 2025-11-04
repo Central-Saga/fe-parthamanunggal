@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import AuthBootstrap from "@/components/auth-bootstrap";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -17,8 +18,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AuthBootstrap />
-          {children}
+          <Suspense fallback={null}>
+            <AuthBootstrap />
+            {children}
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>

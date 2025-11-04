@@ -12,14 +12,17 @@ export function getApiBaseUrl() {
     const serverBase = internal || fromBase || fromUrl;
     if (serverBase) return serverBase;
     return process.env.NODE_ENV === 'production'
-      ? 'https://api.parthamanunggal.com'
+      ? 'https://api.parthamanunggal.test'
       : 'http://localhost:8000';
   }
 
   // Browser runtime (client)
   const host = window.location.hostname;
-  // Force localhost backend when site is opened from localhost,
-  // even if a stale NEXT_PUBLIC_* value was baked during build.
+  // Prefer env if provided (allows relative path like /api)
+  const clientBase = fromBase || fromUrl;
+  if (clientBase) return clientBase;
+
+  // Fallback: localhost convenience for ad-hoc setups
   if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) {
     const base = 'http://localhost:8000';
     if (process.env.NODE_ENV !== 'production') {
@@ -28,14 +31,8 @@ export function getApiBaseUrl() {
     return base;
   }
 
-  // Otherwise, use env if provided
-  const clientBase = fromBase || fromUrl;
-  if (clientBase) {
-    return clientBase;
-  }
-
   // Final fallback
-  return 'https://api.parthamanunggal.com';
+  return 'https://api.parthamanunggal.test';
 }
 
 export function shouldProxyApiThroughNext() {

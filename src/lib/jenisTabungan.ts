@@ -13,8 +13,18 @@ function parseEnvInt(val: string | undefined): number | null {
 }
 
 export function getTabunganJenisIdFromEnv(key: TabunganKey): number | null {
-  // @ts-ignore
-  const v = process.env?.[envNameFor(key)] as string | undefined;
+  let v: string | undefined;
+  switch (key) {
+    case 'harian':
+      v = process.env.NEXT_PUBLIC_JENIS_TABUNGAN_HARIAN;
+      break;
+    case 'berjangka':
+      v = process.env.NEXT_PUBLIC_JENIS_TABUNGAN_BERJANGKA;
+      break;
+    case 'deposito':
+      v = process.env.NEXT_PUBLIC_JENIS_TABUNGAN_DEPOSITO;
+      break;
+  }
   return parseEnvInt(v);
 }
 

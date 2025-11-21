@@ -54,27 +54,32 @@ jobs:
                       NEXT_PUBLIC_ENABLE_INTEREST_TRIGGER=1
 
             - name: Deploy to VPS
-              uses: appleboy/ssh-action@master
-              with:
-                  host: ${{ secrets.VPS_HOST }}
-                  username: ${{ secrets.VPS_USERNAME }}
-                  key: ${{ secrets.SSH_KEY }}
-                  script: |
-                      cd /var/www/partha
+                        uses: appleboy/ssh-action@master
+                        with:
+                            host: ${{ secrets.VPS_HOST }}
+                            username: ${{ secrets.VPS_USERNAME }}
+                            key: ${{ secrets.SSH_KEY }}
+                            script: |
+                                cd /var/www/partha
 
-                      # 1. Login ke Docker Registry
-                      echo ${{ secrets.GHCR_PAT }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+                                # 1. Login ke Registry & Tarik Image
+                                echo ${{ secrets.GHCR_PAT }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+                                sudo docker-compose -f docker-compose.app.yml pull frontend
 
-                      # 2. Tarik Image Frontend Terbaru
-                      sudo docker-compose -f docker-compose.app.yml pull frontend
+                                # 2. Recreate Frontend
+                                # Menggunakan '--force-recreate' untuk memastikan container baru dibuat
+                                sudo docker-compose -f docker-compose.app.yml up -d --force-recreate --no-deps frontend
 
-                      # 3. Matikan & Nyalakan Frontend (Pakai force-recreate biar bersih)
-                      sudo docker-compose -f docker-compose.app.yml up -d --force-recreate --no-deps frontend
+                                # 3. --- BAGIAN KRUSIAL (SOLUSI ERROR) ---
+                                
+                                # Tunggu 10 detik. 
+                                # Ini memberi waktu agar container 'partha_frontend' benar-benar siap (listening) sebelum Nginx di-refresh.
+                                # Tanpa sleep, Nginx mungkin reload saat frontend belum siap, menyebabkan error 502 sementara.
+                                sleep 10
 
-                      # 4. --- INI TAMBAHANNYA: Restart Reverse Proxy ---
-                      # Ini memaksa Nginx mendeteksi IP baru dari frontend
-                      echo "Restarting Reverse Proxy..."
-                      sudo docker restart koperasi-reverse-proxy
+                                # Perintahkan Nginx di dalam 'koperasi-reverse-proxy' untuk reload konfigurasi.
+                                # Ini akan memaksa Nginx mencari IP baru dari 'partha_frontend' tanpa mematikan server.
+                                sudo docker exec koperasi-reverse-proxy nginx -s reload
 
-                      # 5. Bersihkan image lama
-                      sudo docker image prune -f
+                                # 4. Bersihkan image lama
+                                sudo docker image prune -f

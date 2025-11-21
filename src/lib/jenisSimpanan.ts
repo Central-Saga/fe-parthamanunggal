@@ -21,11 +21,37 @@ function parseEnvInt(val: string | undefined): number | null {
 }
 
 export function getJenisIdFromEnv(key: JenisKey): number | null {
-  if (typeof process === "undefined") return null;
-  const name = envNameFor(key);
-  // @ts-ignore - NEXT_PUBLIC_* will be inlined on client
-  const val = process.env?.[name] as string | undefined;
-  return parseEnvInt(val);
+  let v: string | undefined;
+
+  // Kita harus tulis satu per satu agar Next.js Build bisa membacanya
+  switch (key) {
+    case "sukarela":
+      v = process.env.NEXT_PUBLIC_JENIS_SUKARELA;
+      break;
+    case "wajib_usaha":
+      v = process.env.NEXT_PUBLIC_JENIS_WAJIB_USAHA;
+      break;
+    case "berjangka":
+      v = process.env.NEXT_PUBLIC_JENIS_BERJANGKA;
+      break;
+    case "pokok":
+      v = process.env.NEXT_PUBLIC_JENIS_POKOK;
+      break;
+    case "wajib":
+      v = process.env.NEXT_PUBLIC_JENIS_WAJIB;
+      break;
+    case "wajib_khusus":
+      v = process.env.NEXT_PUBLIC_JENIS_WAJIB_KHUSUS;
+      break;
+    case "khusus":
+      v = process.env.NEXT_PUBLIC_JENIS_KHUSUS;
+      break;
+    case "modal":
+      v = process.env.NEXT_PUBLIC_JENIS_MODAL;
+      break;
+  }
+
+  return parseEnvInt(v);
 }
 
 function candidatesForName(key: JenisKey): string[] {

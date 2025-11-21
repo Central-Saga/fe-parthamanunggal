@@ -14,6 +14,8 @@ function parseEnvInt(val: string | undefined): number | null {
 
 export function getTabunganJenisIdFromEnv(key: TabunganKey): number | null {
   let v: string | undefined;
+  
+  // Kita harus tulis satu per satu agar Next.js Build bisa membacanya
   switch (key) {
     case 'harian':
       v = process.env.NEXT_PUBLIC_JENIS_TABUNGAN_HARIAN;
@@ -25,6 +27,7 @@ export function getTabunganJenisIdFromEnv(key: TabunganKey): number | null {
       v = process.env.NEXT_PUBLIC_JENIS_TABUNGAN_DEPOSITO;
       break;
   }
+  
   return parseEnvInt(v);
 }
 

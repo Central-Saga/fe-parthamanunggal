@@ -1,85 +1,82 @@
 name: Deploy Frontend
 
 on:
-    push:
-        branches: ["main"]
+  push:
+    branches: ["main"]
 
 env:
-    REGISTRY: ghcr.io
-    IMAGE_NAME: wirabudhi/fe-parthamanunggal
+  REGISTRY: ghcr.io
+  IMAGE_NAME: wirabudhi/fe-parthamanunggal
 
 jobs:
-    build-and-deploy:
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-            packages: write
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-        steps:
-            - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Login to GHCR
-              uses: docker/login-action@v3
-              with:
-                  registry: ${{ env.REGISTRY }}
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.GHCR_PAT }}
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
 
-            - name: Build & Push
-              uses: docker/build-push-action@v5
-              with:
-                  context: .
-                  push: true
-                  tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-                  build-args: |
-                      NEXT_PUBLIC_API_BASE_URL=https://api.partha-manunggal.com/api
-                      NEXT_PUBLIC_API_URL=https://api.partha-manunggal.com/api
-                      INTERNAL_API_BASE_URL=http://backend
-                      NEXT_PUBLIC_USE_SERVER_AUTH=1
-                      NEXT_PUBLIC_USE_SANCTUM=1
-                      NEXT_PUBLIC_AUTO_LOGIN=1
-                      NEXT_PUBLIC_AUTO_LOGIN_EMAIL=admin@example.com
-                      NEXT_PUBLIC_AUTO_LOGIN_PASSWORD=password
-                      NEXT_PUBLIC_JENIS_SUKARELA=1
-                      NEXT_PUBLIC_JENIS_WAJIB_USAHA=2
-                      NEXT_PUBLIC_JENIS_BERJANGKA=3
-                      NEXT_PUBLIC_JENIS_POKOK=4
-                      NEXT_PUBLIC_JENIS_WAJIB=5
-                      NEXT_PUBLIC_JENIS_WAJIB_KHUSUS=6
-                      NEXT_PUBLIC_JENIS_KHUSUS=7
-                      NEXT_PUBLIC_JENIS_MODAL=8
-                      NEXT_PUBLIC_JENIS_TABUNGAN_HARIAN=1
-                      NEXT_PUBLIC_JENIS_TABUNGAN_BERJANGKA=2
-                      NEXT_PUBLIC_JENIS_TABUNGAN_DEPOSITO=3
-                      NEXT_PUBLIC_ENABLE_INTEREST_TRIGGER=1
+      - name: Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=https://api.partha-manunggal.com/api
+            NEXT_PUBLIC_API_URL=https://api.partha-manunggal.com/api
+            INTERNAL_API_BASE_URL=http://backend
+            NEXT_PUBLIC_USE_SERVER_AUTH=1
+            NEXT_PUBLIC_USE_SANCTUM=1
+            NEXT_PUBLIC_AUTO_LOGIN=1
+            NEXT_PUBLIC_AUTO_LOGIN_EMAIL=admin@example.com
+            NEXT_PUBLIC_AUTO_LOGIN_PASSWORD=password
+            NEXT_PUBLIC_JENIS_SUKARELA=1
+            NEXT_PUBLIC_JENIS_WAJIB_USAHA=2
+            NEXT_PUBLIC_JENIS_BERJANGKA=3
+            NEXT_PUBLIC_JENIS_POKOK=4
+            NEXT_PUBLIC_JENIS_WAJIB=5
+            NEXT_PUBLIC_JENIS_WAJIB_KHUSUS=6
+            NEXT_PUBLIC_JENIS_KHUSUS=7
+            NEXT_PUBLIC_JENIS_MODAL=8
+            NEXT_PUBLIC_JENIS_TABUNGAN_HARIAN=1
+            NEXT_PUBLIC_JENIS_TABUNGAN_BERJANGKA=2
+            NEXT_PUBLIC_JENIS_TABUNGAN_DEPOSITO=3
+            NEXT_PUBLIC_ENABLE_INTEREST_TRIGGER=1
 
-            - name: Deploy to VPS
-                        uses: appleboy/ssh-action@master
-                        with:
-                            host: ${{ secrets.VPS_HOST }}
-                            username: ${{ secrets.VPS_USERNAME }}
-                            key: ${{ secrets.SSH_KEY }}
-                            script: |
-                                cd /var/www/partha
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /var/www/partha
 
-                                # 1. Login ke Registry & Tarik Image
-                                echo ${{ secrets.GHCR_PAT }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
-                                sudo docker-compose -f docker-compose.app.yml pull frontend
+            # 1. Login ke Registry & Tarik Image
+            echo ${{ secrets.GHCR_PAT }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            sudo docker-compose -f docker-compose.app.yml pull frontend
 
-                                # 2. Recreate Frontend
-                                # Menggunakan '--force-recreate' untuk memastikan container baru dibuat
-                                sudo docker-compose -f docker-compose.app.yml up -d --force-recreate --no-deps frontend
+            # 2. Recreate Frontend
+            # Menggunakan '--force-recreate' untuk memastikan container baru dibuat
+            sudo docker-compose -f docker-compose.app.yml up -d --force-recreate --no-deps frontend
 
-                                # 3. --- BAGIAN KRUSIAL (SOLUSI ERROR) ---
-                                
-                                # Tunggu 10 detik. 
-                                # Ini memberi waktu agar container 'partha_frontend' benar-benar siap (listening) sebelum Nginx di-refresh.
-                                # Tanpa sleep, Nginx mungkin reload saat frontend belum siap, menyebabkan error 502 sementara.
-                                sleep 10
+            # 3. --- BAGIAN KRUSIAL (SOLUSI ERROR) ---
+            # Tunggu 10 detik agar container frontend benar-benar siap sebelum Nginx reload
+            sleep 10
 
-                                # Perintahkan Nginx di dalam 'koperasi-reverse-proxy' untuk reload konfigurasi.
-                                # Ini akan memaksa Nginx mencari IP baru dari 'partha_frontend' tanpa mematikan server.
-                                sudo docker exec koperasi-reverse-proxy nginx -s reload
+            # Reload konfigurasi Nginx di dalam reverse proxy
+            sudo docker exec koperasi-reverse-proxy nginx -s reload
 
-                                # 4. Bersihkan image lama
-                                sudo docker image prune -f
+            # 4. Bersihkan image lama
+            sudo docker image prune -f
+

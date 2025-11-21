@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+// Fungsi untuk mengambil nilai dari environment variable dan mengkonversi ke number
 function parseIntEnv(name: string): number | null {
   const v = process.env[name];
   if (!v) return null;
@@ -7,6 +8,7 @@ function parseIntEnv(name: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// Fungsi untuk mengambil nilai dari environment variable dan mengkonversi ke number
 export async function GET() {
   const mapping = {
     sukarela: parseIntEnv('NEXT_PUBLIC_JENIS_SUKARELA'),

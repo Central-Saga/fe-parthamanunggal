@@ -13,6 +13,8 @@ export default function RolesEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [allPerms, setAllPerms] = useState<Array<{ id: number; name: string }>>([]);
+  const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -20,9 +22,21 @@ export default function RolesEditPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await apiRequest<Role | { data: Role }>('GET', `/api/roles/${id}`);
+        // Load role detail with permissions
+        const res = await apiRequest<any>('GET', `/api/roles/${id}`);
         const data = (res as any)?.data ? (res as any).data : res;
-        if (mounted && data) setName((data as Role).name);
+        if (mounted && data) {
+          setName(data.name);
+          const perms: string[] = Array.isArray((data as any).permissions) ? (data as any).permissions : [];
+          setSelected(perms);
+        }
+
+        // Load all permissions for checkbox list
+        try {
+          const pres = await apiRequest<Array<{ id: number; name: string }> | { data: Array<{ id: number; name: string }> }>('GET', '/api/permissions');
+          const list = Array.isArray(pres) ? pres : ((pres as any)?.data ?? []);
+          if (mounted) setAllPerms(list);
+        } catch {}
       } catch (e: any) {
         if (mounted) setError(e?.message ?? 'Gagal memuat data');
       } finally {
@@ -33,12 +47,23 @@ export default function RolesEditPage() {
     return () => { mounted = false; };
   }, [id]);
 
+  function togglePerm(name?: string) {
+    if (!name) return;
+    setSelected((prev) => {
+      const arr = Array.isArray(prev) ? prev : [];
+      return arr.includes(name) ? arr.filter((x) => x !== name) : [...arr, name];
+    });
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSaving(true);
     try {
-      await apiRequest('PUT', `/api/roles/${id}`, { name });
+      const payload: Record<string, unknown> = { name };
+      // Always send permissions if we have the list (even empty to clear)
+      if (allPerms.length >= 0) payload.permissions = selected;
+      await apiRequest('PUT', `/api/roles/${id}`, payload);
       router.push('/dashboard/roles');
     } catch (err: any) {
       setError(err?.message ?? 'Gagal menyimpan role');
@@ -57,7 +82,7 @@ export default function RolesEditPage() {
       {loading && <div className="text-muted-foreground">Memuat...</div>}
       {error && !loading && <div className="text-sm text-red-600">{error}</div>}
       {!loading && (
-        <form onSubmit={onSubmit} className="space-y-4 max-w-xl">
+        <form onSubmit={onSubmit} className="space-y-6 max-w-3xl">
           <label className="block space-y-1">
             <div className="text-sm font-medium text-foreground">Nama Role<span className="text-red-600">*</span></div>
             <input
@@ -68,6 +93,24 @@ export default function RolesEditPage() {
             />
           </label>
 
+          {allPerms.length > 0 && (
+            <div>
+              <div className="text-sm font-medium mb-2">Permissions</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {allPerms.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(p.name)}
+                      onChange={() => togglePerm(p.name)}
+                    />
+                    <span>{p.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</Button>
             <Button type="button" variant="outline" onClick={() => router.push('/dashboard/roles')}>Batal</Button>
@@ -77,4 +120,3 @@ export default function RolesEditPage() {
     </div>
   );
 }
-

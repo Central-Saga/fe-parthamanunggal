@@ -19,13 +19,14 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { logout } from "@/lib/auth";
-import PermissionGate from "@/components/permission-gate";
+import PermissionGate, { usePermissions } from "@/components/permission-gate";
 
 type Item = {
   label: string;
   href?: string;
   icon?: React.ComponentType<{ className?: string }>;
   children?: Item[];
+  requirePerm?: string | string[];
 };
 
 function isActive(pathname: string, href?: string) {
@@ -129,6 +130,7 @@ export default function DashboardSidebar() {
       {
         label: "Simpanan",
         icon: Wallet,
+        requirePerm: ["mengelola simpanan"],
         children: [
           { label: "Sukarela", href: "/dashboard/simpanan/sukarela" },
           { label: "Wajib Usaha", href: "/dashboard/simpanan/wajib_usaha" },
@@ -143,15 +145,16 @@ export default function DashboardSidebar() {
       {
         label: "Tabungan",
         icon: BookMarked,
+        requirePerm: ["mengelola tabungan"],
         children: [
           { label: "Catat Tabungan", href: "/dashboard/catat-tabungan" },
           { label: "Harian", href: "/dashboard/tabungan/harian" },
           { label: "Berjangka", href: "/dashboard/tabungan/berjangka" },
           { label: "Deposito", href: "/dashboard/tabungan/deposito" },
-          { label: "Bunga Tabungan", href: "/dashboard/bunga-tabungan" },
+          { label: "Bunga Tabungan", href: "/dashboard/bunga-tabungan", requirePerm: ["mengelola bunga"] },
         ],
       },
-            { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: PengaturanIcon },
+            { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: PengaturanIcon, requirePerm: ["mengelola pengaturan"] },
       // { label: "Laporan", href: "/dashboard/laporan", icon: FileText },
       {
         label: "Neraca",
@@ -165,25 +168,45 @@ export default function DashboardSidebar() {
       // { label: "SHU", href: "/dashboard/laporan/shu", icon: FileText }, // hidden by request
       // { label: "Jurnal Umum", href: "/dashboard/jurnal", icon: FileText }, // hidden by request
       { label: "Akun (COA)", href: "/dashboard/akun", icon: AkunIcon },
+      // Admin items merged into Menu (permission gated)
+      { label: "Users", href: "/dashboard/users", icon: Users, requirePerm: ["mengelola users"] },
+      { label: "Roles", href: "/dashboard/roles", icon: BadgeCheck, requirePerm: ["mengelola roles"] },
+      { label: "Anggota", href: "/dashboard/anggota", icon: UserPlus, requirePerm: ["mengelola anggota"] },
+      { label: "Generate Bunga", href: "/dashboard/generate-bunga", icon: GenerateBungaIcon, requirePerm: ["mengelola bunga"] },
     ],
     []
   );
 
+  // Permission-aware filtering so unauthorized items don't render at all
+  const perms = usePermissions();
+  const hasPerm = (required?: string | string[]) => {
+    if (!required) return true;
+    const needs = Array.isArray(required) ? required : [required];
+    return needs.every((p) => perms.includes(p));
+  };
+  function filterItems(items: Item[]): Item[] {
+    const out: Item[] = [];
+    for (const it of items) {
+      if (!hasPerm(it.requirePerm)) continue;
+      let children = it.children;
+      if (children && children.length) {
+        const filtered = filterItems(children);
+        if (filtered.length === 0 && !it.href) continue; // hide empty groups with no direct href
+        children = filtered;
+      }
+      out.push(children ? { ...it, children } : it);
+    }
+    return out;
+  }
+  const visibleMenu = useMemo(() => filterItems(menu), [menu, perms]);
+
   // Determine which hrefs should only match exactly (to avoid parent prefix being active, e.g. '/dashboard/laporan' vs '/dashboard/laporan/neraca-harian')
   const exactOnlyHrefs = useMemo(() => {
     const hrefs: string[] = [];
-    for (const it of menu) {
+    for (const it of visibleMenu) {
       if (it.href) hrefs.push(it.href);
       if (it.children) for (const c of it.children) if (c.href) hrefs.push(c.href);
     }
-    // Include admin links too
-    const adminList: Item[] = [
-      { label: "Users", href: "/dashboard/users" },
-      { label: "Roles", href: "/dashboard/roles" },
-      { label: "Anggota", href: "/dashboard/anggota" },
-      { label: "Generate Bunga", href: "/dashboard/generate-bunga" },
-    ];
-    for (const it of adminList) if (it.href) hrefs.push(it.href);
 
     const set = new Set<string>();
     for (const h of hrefs) {
@@ -195,7 +218,7 @@ export default function DashboardSidebar() {
       }
     }
     return set;
-  }, [menu]);
+  }, [visibleMenu]);
 
   // Dynamically update Simpanan submenu labels from backend by ID, if provided in env
   useEffect(() => {
@@ -232,22 +255,13 @@ export default function DashboardSidebar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const admin = useMemo<Item[]>(
-    () => [
-      { label: "Users", href: "/dashboard/users", icon: Users },
-      { label: "Roles", href: "/dashboard/roles", icon: BadgeCheck },
-      { label: "Anggota", href: "/dashboard/anggota", icon: UserPlus },
-      { label: "Generate Bunga", href: "/dashboard/generate-bunga", icon: GenerateBungaIcon },
-      { label: "Pengaturan Bunga", href: "/dashboard/pengaturan-bunga", icon: PengaturanIcon },
-    ],
-    []
-  );
+  // Admin block removed; items merged into main Menu with permission gating
 
   // ⬇️ Tutup semua grup di awal, tapi buka otomatis kalau ada child yang aktif
   const initialOpen = useMemo(() => {
     const state: Record<string, boolean> = {};
     let openedOnce = false;
-    for (const item of menu) {
+    for (const item of visibleMenu) {
       if (item.children) {
         const shouldOpen = !openedOnce && item.children.some((c) => isActive(pathname, c.href));
         state[item.label] = shouldOpen;
@@ -255,7 +269,7 @@ export default function DashboardSidebar() {
       }
     }
     return state;
-  }, [menu, pathname]);
+  }, [visibleMenu, pathname]);
 
   const [open, setOpen] = useState<Record<string, boolean>>(initialOpen);
 
@@ -263,7 +277,7 @@ export default function DashboardSidebar() {
   useEffect(() => {
     const next: Record<string, boolean> = {};
     let openedOnce = false;
-    for (const item of menu) {
+    for (const item of visibleMenu) {
       if (item.children) {
         const shouldOpen = !openedOnce && item.children.some((c) => isActive(pathname, c.href));
         next[item.label] = shouldOpen;
@@ -271,7 +285,7 @@ export default function DashboardSidebar() {
       }
     }
     setOpen(next);
-  }, [pathname, menu]);
+  }, [pathname, visibleMenu]);
 
   return (
     <aside className="h-screen sticky top-0 w-[248px] shrink-0 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -284,7 +298,7 @@ export default function DashboardSidebar() {
           <div>
             <div className="px-3 pb-2 text-xs font-medium tracking-wide text-muted-foreground">Menu</div>
             <ul className="space-y-1">
-              {menu.map((item) => (
+              {visibleMenu.map((item) => (
                 <li key={item.label}>
                   {item.children ? (
                     <Collapsible
@@ -308,69 +322,41 @@ export default function DashboardSidebar() {
                             {c.label}
                           </SidebarLink>
                         );
-                        if (c.label === 'Bunga Tabungan') {
-                          return (
-                            <PermissionGate key={c.label} required={["mengelola bunga"]}>
-                              {link}
-                            </PermissionGate>
-                          );
-                        }
-                        return link;
+                        return c.requirePerm ? (
+                          <PermissionGate key={c.label} required={c.requirePerm}>
+                            {link}
+                          </PermissionGate>
+                        ) : (
+                          link
+                        );
                       })}
                     </Collapsible>
-                  ) : item.label === 'Pengaturan Bunga' ? (
-                    <PermissionGate required={["mengelola pengaturan"]}>
+                  ) : item.href ? (
+                    item.requirePerm ? (
+                      <PermissionGate required={item.requirePerm}>
+                        <SidebarItem
+                          href={item.href}
+                          icon={item.icon}
+                          active={exactOnlyHrefs.has(item.href) ? pathname === item.href : isActive(pathname, item.href)}
+                        >
+                          {item.label}
+                        </SidebarItem>
+                      </PermissionGate>
+                    ) : (
                       <SidebarItem
-                        href={item.href!}
+                        href={item.href}
                         icon={item.icon}
-                        active={exactOnlyHrefs.has(item.href!) ? pathname === item.href : isActive(pathname, item.href)}
+                        active={exactOnlyHrefs.has(item.href) ? pathname === item.href : isActive(pathname, item.href)}
                       >
                         {item.label}
                       </SidebarItem>
-                    </PermissionGate>
-                  ) : (
-                    <SidebarItem
-                      href={item.href!}
-                      icon={item.icon}
-                      active={exactOnlyHrefs.has(item.href!) ? pathname === item.href : isActive(pathname, item.href)}
-                    >
-                      {item.label}
-                    </SidebarItem>
-                  )}
+                    )
+                  ) : null}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div>
-            <div className="px-3 pb-2 text-xs font-medium tracking-wide text-muted-foreground">Admin</div>
-            <ul className="space-y-1">
-              {admin.map((item) => {
-                if (item.label === 'Generate Bunga') {
-                  return (
-                    <li key={item.label}>
-                      <PermissionGate required={["mengelola bunga"]}>
-                        <SidebarItem href={item.href!} icon={item.icon} active={isActive(pathname, item.href)}>
-                          {item.label}
-                        </SidebarItem>
-                      </PermissionGate>
-                    </li>
-                  );
-                }
-                return (
-                  <li key={item.label}>
-                    <SidebarItem
-                      href={item.href!}
-                      icon={item.icon}
-                      active={exactOnlyHrefs.has(item.href!) ? pathname === item.href : isActive(pathname, item.href)}
-                    >
-                      {item.label}
-                    </SidebarItem>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
         </nav>
 
         <ProfileMenu />

@@ -2,7 +2,7 @@ name: Deploy Frontend
 
 on:
     push:
-        branches: ["main"] # Sesuaikan nama branch (main/master)
+        branches: ["main"]
 
 env:
     REGISTRY: ghcr.io
@@ -31,7 +31,6 @@ jobs:
                   context: .
                   push: true
                   tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-                  # Masukkan ENV Frontend disini
                   build-args: |
                       NEXT_PUBLIC_API_BASE_URL=https://api.partha-manunggal.com/api
                       NEXT_PUBLIC_API_URL=https://api.partha-manunggal.com/api
@@ -62,7 +61,20 @@ jobs:
                   key: ${{ secrets.SSH_KEY }}
                   script: |
                       cd /var/www/partha
+
+                      # 1. Login ke Docker Registry
                       echo ${{ secrets.GHCR_PAT }} | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+                      # 2. Tarik Image Frontend Terbaru
                       sudo docker-compose -f docker-compose.app.yml pull frontend
-                      sudo docker-compose -f docker-compose.app.yml up -d --no-deps frontend
+
+                      # 3. Matikan & Nyalakan Frontend (Pakai force-recreate biar bersih)
+                      sudo docker-compose -f docker-compose.app.yml up -d --force-recreate --no-deps frontend
+
+                      # 4. --- INI TAMBAHANNYA: Restart Reverse Proxy ---
+                      # Ini memaksa Nginx mendeteksi IP baru dari frontend
+                      echo "Restarting Reverse Proxy..."
+                      sudo docker restart koperasi-reverse-proxy
+
+                      # 5. Bersihkan image lama
                       sudo docker image prune -f

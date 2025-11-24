@@ -31,10 +31,10 @@ export default function SimpananBerjangkaDataTable() {
       columns={simpananBerjangkaColumns}
       listUrl={url}
       createHref={createHref}
-      createLabel="Tambah Simpanan Berjangka"
+      createLabel="Tambah SSK"
       onDeleteUrl={(id) => `/api/simpanans/${id}`}
       searchPlaceholder="Cari simpanan..."
-      emptyText="Belum ada simpanan berjangka"
+      emptyText="Belum ada Sertifikat Simpanan Khusus"
     />
   );
 }

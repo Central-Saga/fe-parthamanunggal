@@ -5,6 +5,11 @@ import { Button } from '@/components/ui/button';
 
 export const anggotaColumns: ColumnDef<Anggota>[] = [
   {
+    header: 'ID Anggota',
+    accessorKey: 'id',
+    size: 80,
+  },
+  {
     header: 'NIK',
     accessorKey: 'nik',
     size: 160,

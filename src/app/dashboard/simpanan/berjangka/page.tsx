@@ -5,8 +5,8 @@ export default function SimpananBerjangkaPage() {
   return (
     <div className="p-6 space-y-4">
       <div>
-        <JenisHeading jenisKey="berjangka" fallback="Berjangka" />
-        <p className="text-sm text-muted-foreground">Daftar simpanan berjangka dari backend.</p>
+        <JenisHeading jenisKey="berjangka" fallback="SSK (Sertifikat Simpanan Khusus)" />
+        <p className="text-sm text-muted-foreground">Daftar Sertifikat Simpanan Khusus dari backend.</p>
       </div>
 
       <SimpananBerjangkaDataTable />

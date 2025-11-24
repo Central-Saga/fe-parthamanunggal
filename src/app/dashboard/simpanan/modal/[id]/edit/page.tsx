@@ -10,8 +10,8 @@ export default function SimpananModalEditPage() {
       mode="edit"
       id={id}
       backHref="/dashboard/simpanan/modal"
-      title="Edit Simpanan Modal"
-      subtitle="Perbarui data simpanan modal"
+      title="Edit Simpanan Ekuitas"
+      subtitle="Perbarui data simpanan ekuitas"
     />
   );
 }

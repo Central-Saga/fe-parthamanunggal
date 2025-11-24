@@ -6,8 +6,8 @@ export default function SimpananBerjangkaCreatePage() {
       jenisKey="berjangka"
       mode="create"
       backHref="/dashboard/simpanan/berjangka"
-      title="Buat Simpanan Berjangka"
-      subtitle="Isi data simpanan berjangka"
+      title="Buat SSK (Sertifikat Simpanan Khusus)"
+      subtitle="Isi data Sertifikat Simpanan Khusus"
     />
   );
 }

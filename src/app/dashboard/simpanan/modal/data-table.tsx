@@ -31,10 +31,10 @@ export default function SimpananModalDataTable() {
       columns={simpananModalColumns}
       listUrl={url}
       createHref={createHref}
-      createLabel="Tambah Simpanan Modal"
+      createLabel="Tambah Simpanan Ekuitas"
       onDeleteUrl={(id) => `/api/simpanans/${id}`}
       searchPlaceholder="Cari simpanan..."
-      emptyText="Belum ada simpanan modal"
+      emptyText="Belum ada simpanan ekuitas"
     />
   );
 }

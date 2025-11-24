@@ -1,7 +1,3 @@
-// Simpanan types aligned with Laravel migration
-// Table: simpanan
-// Columns: id, anggota_id, jenis_simpanan_id, nominal, tanggal, keterangan, status, created_at, updated_at
-
 export interface Simpanan {
   id: number; // bigint
   anggota_id: number; // unsignedBigInteger (FK to anggota.id)
@@ -13,8 +9,20 @@ export interface Simpanan {
   created_at: string; // timestamp (ISO string)
   updated_at: string; // timestamp (ISO string)
   // Optional eager-loaded relations from backend
-  anggota?: { id: number; nama: string };
-  jenis_simpanan?: { id: number; nama: string };
+  anggota?: {
+    id: number;
+    nama: string;
+    // Relasi ke user (jika di-load di backend)
+    user?: {
+      id: number;
+      email: string;
+      status: string;
+    } | null;
+  } | null;
+  jenis_simpanan?: {
+    id: number;
+    nama: string;
+  } | null;
 }
 
 export interface ApiResponse<T> {

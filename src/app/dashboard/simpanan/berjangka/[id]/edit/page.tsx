@@ -10,8 +10,8 @@ export default function SimpananBerjangkaEditPage() {
       mode="edit"
       id={id}
       backHref="/dashboard/simpanan/berjangka"
-      title="Edit Simpanan Berjangka"
-      subtitle="Perbarui data simpanan berjangka"
+      title="Edit SSK (Sertifikat Simpanan Khusus)"
+      subtitle="Perbarui data Sertifikat Simpanan Khusus"
     />
   );
 }

@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export const simpananWajibUsahaColumns: ColumnDef<Simpanan>[] = [
-  { header: 'ID', accessorKey: 'id', size: 80 },
+  {
+    header: 'ID Anggota',
+    accessorKey: 'anggota_id',
+    size: 100,
+    cell: ({ row }) => row.original.anggota_id ?? row.original.anggota?.id ?? '-',
+  },
   {
     id: 'anggota',
     header: 'Anggota',

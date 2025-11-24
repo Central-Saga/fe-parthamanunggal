@@ -134,12 +134,12 @@ export default function DashboardSidebar() {
         children: [
           { label: "Sukarela", href: "/dashboard/simpanan/sukarela" },
           { label: "Wajib Usaha", href: "/dashboard/simpanan/wajib_usaha" },
-          { label: "Berjangka", href: "/dashboard/simpanan/berjangka" },
+          { label: "SSK", href: "/dashboard/simpanan/berjangka" },
           { label: "Pokok", href: "/dashboard/simpanan/pokok" },
           { label: "Wajib", href: "/dashboard/simpanan/wajib" },
           { label: "Wajib Khusus", href: "/dashboard/simpanan/wajib_khusus" },
           { label: "Khusus", href: "/dashboard/simpanan/khusus" },
-          { label: "Modal", href: "/dashboard/simpanan/modal" },
+          { label: "Ekuitas", href: "/dashboard/simpanan/modal" },
         ],
       },
       {
@@ -225,12 +225,12 @@ export default function DashboardSidebar() {
     const keys: Array<{ key: string; index: number; fallback: string }> = [
       { key: 'sukarela', index: 0, fallback: 'Sukarela' },
       { key: 'wajib_usaha', index: 1, fallback: 'Wajib Usaha' },
-      { key: 'berjangka', index: 2, fallback: 'Berjangka' },
+      { key: 'berjangka', index: 2, fallback: 'SSK' },
       { key: 'pokok', index: 3, fallback: 'Pokok' },
       { key: 'wajib', index: 4, fallback: 'Wajib' },
       { key: 'wajib_khusus', index: 5, fallback: 'Wajib Khusus' },
       { key: 'khusus', index: 6, fallback: 'Khusus' },
-      { key: 'modal', index: 7, fallback: 'Modal' },
+      { key: 'modal', index: 7, fallback: 'Ekuitas' },
     ];
     let mounted = true;
     async function load() {

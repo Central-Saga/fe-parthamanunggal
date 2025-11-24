@@ -6,8 +6,8 @@ export default function SimpananModalCreatePage() {
       jenisKey="modal"
       mode="create"
       backHref="/dashboard/simpanan/modal"
-      title="Buat Simpanan Modal"
-      subtitle="Isi data simpanan modal"
+      title="Buat Simpanan Ekuitas"
+      subtitle="Isi data simpanan ekuitas"
     />
   );
 }

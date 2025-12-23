@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 
 export const anggotaColumns: ColumnDef<Anggota>[] = [
   {
-    header: 'ID Anggota',
-    accessorKey: 'id',
-    size: 80,
+    header: 'No Anggota',
+    accessorKey: 'no_anggota',
+    size: 120,
+    cell: ({ row }) => row.original.no_anggota ?? '-',
   },
   {
     header: 'NIK',

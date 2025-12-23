@@ -1,11 +1,12 @@
 // Anggota types aligned with Laravel migration
 // Table: anggota
-// Columns: id, nama, nik, alamat, tanggal_lahir, no_hp, status, tgl_gabung, created_at, updated_at
+// Columns: id, nama, nik, no_anggota, alamat, tanggal_lahir, no_hp, status, tgl_gabung, created_at, updated_at
 
 export interface Anggota {
   id: number; // bigint
   nama: string; // varchar(255)
   nik: string; // varchar(30)
+  no_anggota: string | null; // varchar(50), nullable
   alamat: string; // text
   tanggal_lahir: string; // date (YYYY-MM-DD)
   no_hp: string; // varchar(20)

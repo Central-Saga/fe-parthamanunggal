@@ -9,6 +9,7 @@ import type { Anggota } from "@/types/anggota";
 type FormState = {
   nama: string;
   nik: string;
+  no_anggota: string;
   alamat: string;
   tanggal_lahir: string;
   no_hp: string;
@@ -36,6 +37,7 @@ export default function AnggotaEditPage() {
           setForm({
             nama: data.nama,
             nik: data.nik,
+            no_anggota: data.no_anggota ?? "",
             alamat: data.alamat,
             tanggal_lahir: data.tanggal_lahir,
             no_hp: data.no_hp,
@@ -87,6 +89,18 @@ export default function AnggotaEditPage() {
       {error && !loading && <div className="text-sm text-red-600">{error}</div>}
       {!loading && form && (
         <form onSubmit={onSubmit} className="space-y-4 max-w-2xl">
+          <Field label="No Anggota" required>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              value={form.no_anggota}
+              onChange={(e) => set("no_anggota", e.target.value)}
+              required
+            />
+          </Field>
+
           <Field label="Nama" required>
             <input
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"

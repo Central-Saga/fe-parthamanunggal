@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/api";
 type FormState = {
   nama: string;
   nik: string;
+  no_anggota: string;
   alamat: string;
   tanggal_lahir: string;
   no_hp: string;
@@ -22,6 +23,7 @@ export default function AnggotaCreatePage() {
   const [form, setForm] = useState<FormState>({
     nama: "",
     nik: "",
+    no_anggota: "",
     alamat: "",
     tanggal_lahir: "",
     no_hp: "",
@@ -60,6 +62,18 @@ export default function AnggotaCreatePage() {
 
       <form onSubmit={onSubmit} className="space-y-4 max-w-2xl">
         {error && <div className="text-sm text-red-600">{error}</div>}
+
+        <Field label="No Anggota" required>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            value={form.no_anggota}
+            onChange={(e) => set("no_anggota", e.target.value)}
+            required
+          />
+        </Field>
 
         <Field label="Nama" required>
           <input

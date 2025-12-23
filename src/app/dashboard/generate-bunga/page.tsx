@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { apiRequest } from '@/lib/api';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import PermissionGate from '@/components/permission-gate';
+import { useState } from "react";
+import { apiRequest } from "@/lib/api";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import PermissionGate from "@/components/permission-gate";
 
 export default function GenerateBungaPage() {
   const now = new Date();
@@ -22,8 +22,8 @@ export default function GenerateBungaPage() {
   }
 
   function fmt(d: Date) {
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     return `${dd}/${mm}/${d.getFullYear()}`;
   }
 
@@ -46,25 +46,25 @@ export default function GenerateBungaPage() {
     const y = Number(year);
     if (!m || !y) {
       setLoading(false);
-      setError('Bulan dan Tahun wajib diisi');
+      setError("Bulan dan Tahun wajib diisi");
       return;
     }
     try {
       const body: any = { month: m, year: y };
       if (savingId) body.saving = Number(savingId);
       const res = await apiRequest<{ message?: string; processed?: number; skipped?: number; details?: Array<any> }>(
-        'POST',
-        `/api/internal/interest/run`,
+        "POST",
+        "/api/internal/interest/run",
         body
       );
-      setOk(res?.message ?? 'OK');
+      setOk(res?.message ?? "OK");
       setSummary({ processed: res?.processed, skipped: res?.skipped, details: res?.details });
     } catch (e: any) {
       if (e?.response?.status === 404) {
         setDisabled(true);
-        setError('Endpoint belum tersedia. Jalankan trigger via CLI backend.');
+        setError("Endpoint belum tersedia. Jalankan trigger via CLI backend.");
       } else {
-        setError(e?.response?.data?.message || e?.message || 'Gagal men-trigger');
+        setError(e?.response?.data?.message || e?.message || "Gagal men-trigger");
       }
     } finally {
       setLoading(false);
@@ -76,8 +76,6 @@ export default function GenerateBungaPage() {
       <div className="p-6 space-y-4">
         <div>
           <h1 className="text-xl font-semibold">Generate Bunga</h1>
-          <p className="text-sm text-muted-foreground">Admin: jalankan perhitungan bunga untuk bulan/tahun tertentu.</p>
-          <p className="text-xs text-muted-foreground mt-1">Catatan: Perhitungan memakai saldo akhir bulan dua bulan sebelumnya (M−2). Transaksi bunga akan diposting pada periode yang dipilih.</p>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -91,9 +89,22 @@ export default function GenerateBungaPage() {
                     onChange={(e) => setMonth(Number(e.target.value))}
                   >
                     {[
-                      'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'
+                      "Januari",
+                      "Februari",
+                      "Maret",
+                      "April",
+                      "Mei",
+                      "Juni",
+                      "Juli",
+                      "Agustus",
+                      "September",
+                      "Oktober",
+                      "November",
+                      "Desember",
                     ].map((n, idx) => (
-                      <option key={idx+1} value={idx+1}>{n}</option>
+                      <option key={idx + 1} value={idx + 1}>
+                        {n}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -122,19 +133,48 @@ export default function GenerateBungaPage() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <Button type="button" variant="outline" onClick={() => { const d=new Date(); setMonth(d.getMonth()+1); setYear(d.getFullYear()); }}>Bulan ini</Button>
-                <Button type="button" variant="outline" onClick={() => { const d=new Date(); d.setMonth(d.getMonth()-1); setMonth(d.getMonth()+1); setYear(d.getFullYear()); }}>Bulan lalu</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const d = new Date();
+                    setMonth(d.getMonth() + 1);
+                    setYear(d.getFullYear());
+                  }}
+                >
+                  Bulan ini
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - 1);
+                    setMonth(d.getMonth() + 1);
+                    setYear(d.getFullYear());
+                  }}
+                >
+                  Bulan lalu
+                </Button>
                 <div className="text-xs text-muted-foreground ml-auto">
-                  Tanggal acuan (EOM M−2): <span className="font-medium">{fmt(acuanDate)}</span> • Tanggal posting (EOM M): <span className="font-medium">{fmt(postingDate)}</span>
+                  Tanggal acuan (EOM M-2): <span className="font-medium">{fmt(acuanDate)}</span> • Tanggal posting (EOM M):{" "}
+                  <span className="font-medium">{fmt(postingDate)}</span>
                 </div>
               </div>
               <Button type="submit" disabled={loading || disabled}>
-                {disabled ? 'Endpoint belum tersedia' : (loading ? 'Memproses...' : 'Trigger Generate')}
+                {disabled ? "Endpoint belum tersedia" : loading ? "Memproses..." : "Trigger Generate"}
               </Button>
               {error && <div className="text-sm text-red-600">{error}</div>}
               {ok && (
                 <div className="space-y-2">
-                  <div className="text-sm text-emerald-700">{ok}{summary ? ` — diproses: ${summary.processed ?? 0}${typeof summary.skipped === 'number' ? `, dilewati: ${summary.skipped}` : ''}` : ''}</div>
+                  <div className="text-sm text-emerald-700">
+                    {ok}
+                    {summary
+                      ? ` • diproses: ${summary.processed ?? 0}${
+                          typeof summary.skipped === "number" ? `, dilewati: ${summary.skipped}` : ""
+                        }`
+                      : ""}
+                  </div>
                   {summary?.details && Array.isArray(summary.details) && summary.details.length > 0 && (
                     <div className="overflow-x-auto rounded-md border">
                       <table className="min-w-full text-sm">
@@ -151,12 +191,24 @@ export default function GenerateBungaPage() {
                         <tbody>
                           {summary.details.map((d: any, i: number) => (
                             <tr key={i}>
-                              <td className="px-3 py-2">{d.tabungan_id ?? '-'}</td>
-                              <td className="px-3 py-2">{d.status ?? '-'}</td>
-                              <td className="px-3 py-2">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(d.saldo_minimum || 0))}</td>
-                              <td className="px-3 py-2">{typeof d.rate === 'number' ? `${(d.rate <= 1 ? d.rate * 100 : d.rate)}%` : '-'}</td>
-                              <td className="px-3 py-2">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(d.jumlah_bunga || 0))}</td>
-                              <td className="px-3 py-2">{d.reason || d.tanggal_posting || '-'}</td>
+                              <td className="px-3 py-2">{d.tabungan_id ?? "-"}</td>
+                              <td className="px-3 py-2">{d.status ?? "-"}</td>
+                              <td className="px-3 py-2">
+                                {new Intl.NumberFormat("id-ID", {
+                                  style: "currency",
+                                  currency: "IDR",
+                                }).format(Number(d.saldo_minimum || 0))}
+                              </td>
+                              <td className="px-3 py-2">
+                                {typeof d.rate === "number" ? `${d.rate <= 1 ? d.rate * 100 : d.rate}%` : "-"}
+                              </td>
+                              <td className="px-3 py-2">
+                                {new Intl.NumberFormat("id-ID", {
+                                  style: "currency",
+                                  currency: "IDR",
+                                }).format(Number(d.jumlah_bunga || 0))}
+                              </td>
+                              <td className="px-3 py-2">{d.reason || d.tanggal_posting || "-"}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -172,3 +224,4 @@ export default function GenerateBungaPage() {
     </PermissionGate>
   );
 }
+
